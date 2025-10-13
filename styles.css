@@ -81,7 +81,7 @@ body{
   max-height:85vh; overflow:auto;
 }
 
-/* 九九表（1画面／式表示グリッド） */
+/* 九九表（1画面） */
 .kuku-grid{
   overflow-x:auto;
   border:1px solid #2b3149; border-radius:12px; padding:8px;
