@@ -1,5 +1,5 @@
 // app.js
-// 九九・出題管理・手書き認識（tfjs MNIST）・UI
+// 九九・出題管理・手書き認識（tfjs MNIST 寛容版）・UI
 
 const els = {
   qNo: document.getElementById('qNo'),
@@ -32,7 +32,7 @@ function scaleCanvas() {
   const h = els.canvas.clientHeight;
   els.canvas.width = Math.round(w * DPR);
   els.canvas.height = Math.round(h * DPR);
-  ctx.scale(DPR, DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   clearCanvas();
 }
 function clearCanvas() {
@@ -40,7 +40,7 @@ function clearCanvas() {
   ctx.setTransform(1,0,0,1,0,0);
   ctx.clearRect(0,0,els.canvas.width, els.canvas.height);
   ctx.restore();
-  // draw faint grid baseline
+  // draw faint frame
   ctx.strokeStyle = "#1f2740";
   ctx.lineWidth = 1;
   const margin = 8;
@@ -53,7 +53,7 @@ scaleCanvas();
 let drawing = false;
 let paths = []; // each path is an array of points
 let currentPath = [];
-const pen = { color: '#e6ecff', width: 8, cap: 'round', join: 'round' };
+const pen = { color: '#e6ecff', width: 12, cap: 'round', join: 'round' };
 
 function pt(ev){
   const rect = els.canvas.getBoundingClientRect();
@@ -178,157 +178,219 @@ function showResult(){
 let model = null;
 async function loadModel(){
   // 事前学習済み MNIST（tfjs）を読み込み
-  // 出典: 公開 URL の tfjs モデル（mnist_transfer_cnn_v1）を使用
-  const url = 'https://storage.googleapis.com/tfjs-models/tfjs/mnist_transfer_cnn_v1/model.json'; // :contentReference[oaicite:2]{index=2}
+  const url = 'https://storage.googleapis.com/tfjs-models/tfjs/mnist_transfer_cnn_v1/model.json';
   model = await tf.loadLayersModel(url);
 }
 loadModel().catch(console.error);
 
-// 画像前処理：キャンバス → 2値化 → 水平分割（桁切り出し）→ 28x28 正規化
-function canvasToDigits(canvas){
-  const tmp = document.createElement('canvas');
+// ===== 画像前処理（寛容版） =====
+// 1) 2値化(Otsu近似) 2) 3x3膨張 3) バウンディングボックス抽出
+// 4) 重心(Center of Mass)で28x28中央へ配置 5) 桁分割ロバスト化
+
+function otsuThreshold(gray) {
+  const hist = new Array(256).fill(0);
+  for (let i = 0; i < gray.length; i++) hist[gray[i]]++;
+  const total = gray.length;
+
+  let sum = 0;
+  for (let t = 0; t < 256; t++) sum += t * hist[t];
+
+  let sumB = 0, wB = 0, wF = 0, varMax = 0, thresh = 128;
+  for (let t = 0; t < 256; t++) {
+    wB += hist[t];
+    if (wB === 0) continue;
+    wF = total - wB;
+    if (wF === 0) break;
+    sumB += t * hist[t];
+    const mB = sumB / wB;
+    const mF = (sum - sumB) / wF;
+    const between = wB * wF * (mB - mF) * (mB - mF);
+    if (between > varMax) { varMax = between; thresh = t; }
+  }
+  return thresh;
+}
+
+function dilate(bw, W, H) {
+  const out = new Uint8ClampedArray(bw.length);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      let on = 0;
+      for (let j = -1; j <= 1; j++) {
+        for (let i = -1; i <= 1; i++) {
+          const xx = x + i, yy = y + j;
+          if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue;
+          if (bw[yy * W + xx]) { on = 1; break; }
+        }
+        if (on) break;
+      }
+      out[y * W + x] = on ? 1 : 0;
+    }
+  }
+  return out;
+}
+
+function centerAndResize(bw, W, H) {
+  let minX = W, minY = H, maxX = -1, maxY = -1;
+  let mass = 0, cx = 0, cy = 0;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const v = bw[y * W + x];
+      if (v) {
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+        mass++;
+        cx += x; cy += y;
+      }
+    }
+  }
+  if (mass === 0) return null;
+  cx /= mass; cy /= mass;
+
+  const sw = maxX - minX + 1, sh = maxY - minY + 1;
+  const PAD = 4;
+  const segW = sw + PAD * 2, segH = sh + PAD * 2;
+  const seg = new Uint8ClampedArray(segW * segH);
+
+  for (let y = 0; y < sh; y++) {
+    for (let x = 0; x < sw; x++) {
+      const v = bw[(minY + y) * W + (minX + x)];
+      seg[(y + PAD) * segW + (x + PAD)] = v ? 255 : 0;
+    }
+  }
+
+  const scale = Math.min(20 / segW, 20 / segH);
+  const dw = Math.max(1, Math.round(segW * scale));
+  const dh = Math.max(1, Math.round(segH * scale));
+
+  const can = document.createElement('canvas');
+  can.width = 28; can.height = 28;
+  const c2 = can.getContext('2d');
+  const src = document.createElement('canvas');
+  src.width = segW; src.height = segH;
+  const sctx = src.getContext('2d');
+  const imgData = sctx.createImageData(segW, segH);
+  for (let i = 0; i < seg.length; i++) {
+    imgData.data[i * 4 + 0] = seg[i];
+    imgData.data[i * 4 + 1] = seg[i];
+    imgData.data[i * 4 + 2] = seg[i];
+    imgData.data[i * 4 + 3] = 255;
+  }
+  sctx.putImageData(imgData, 0, 0);
+
+  c2.fillStyle = 'black';
+  c2.fillRect(0, 0, 28, 28);
+  const dx = Math.floor((28 - dw) / 2);
+  const dy = Math.floor((28 - dh) / 2);
+  c2.imageSmoothingEnabled = true;
+  c2.drawImage(src, 0, 0, segW, segH, dx, dy, dw, dh);
+
+  return can;
+}
+
+function canvasToDigits(canvas) {
   const W = canvas.clientWidth, H = canvas.clientHeight;
+  const tmp = document.createElement('canvas');
   tmp.width = W; tmp.height = H;
   const tctx = tmp.getContext('2d');
-  tctx.fillStyle = '#000'; tctx.fillRect(0,0,W,H);
-  tctx.drawImage(canvas,0,0,W,H);
+  tctx.fillStyle = '#000'; tctx.fillRect(0, 0, W, H);
+  tctx.drawImage(canvas, 0, 0, W, H);
 
-  const img = tctx.getImageData(0,0,W,H);
-  const data = img.data;
-
-  // グレースケール & 2値化
-  const bw = new Uint8ClampedArray(W*H);
-  for(let y=0;y<H;y++){
-    for(let x=0;x<W;x++){
-      const i = (y*W + x)*4;
-      const r=data[i], g=data[i+1], b=data[i+2];
-      const v = (r+g+b)/3;
-      bw[y*W + x] = v>220 ? 0 : (v>30 ? 255 : 255); // 線が明るいので反転不要
-    }
+  // Gray & invert (白=ストローク)
+  const img = tctx.getImageData(0, 0, W, H);
+  const g = new Uint8ClampedArray(W * H);
+  for (let i = 0, p = 0; i < img.data.length; i += 4, p++) {
+    const v = (img.data[i] + img.data[i + 1] + img.data[i + 2]) / 3;
+    g[p] = 255 - v;
   }
 
-  // 垂直方向の空白列を探し、分割
-  const colSum = new Uint32Array(W);
-  for(let x=0;x<W;x++){
-    let sum=0;
-    for(let y=0;y<H;y++){
-      sum += bw[y*W+x]>0 ? 1 : 0;
-    }
-    colSum[x]=sum;
+  const thr = otsuThreshold(g);
+  const bw = new Uint8ClampedArray(W * H);
+  for (let i = 0; i < g.length; i++) bw[i] = g[i] > thr ? 1 : 0;
+
+  const bwd = dilate(bw, W, H);
+
+  // 桁分割
+  const col = new Uint32Array(W);
+  for (let x = 0; x < W; x++) {
+    let s = 0;
+    for (let y = 0; y < H; y++) s += bwd[y * W + x];
+    col[x] = s;
   }
-  const gaps = [];
-  for(let x=1;x<W;x++){
-    if(colSum[x]===0 && colSum[x-1]>0) gaps.push(x); // 開始
-  }
-  // スパンを抽出
   const spans = [];
-  let inStroke=false, start=0;
-  for(let x=0;x<W;x++){
-    if(!inStroke && colSum[x]>0){ inStroke=true; start=x; }
-    if(inStroke && colSum[x]===0){ inStroke=false; spans.push([start, x-1]); }
+  let inStroke = false, sx = 0;
+  for (let x = 0; x < W; x++) {
+    if (!inStroke && col[x] > 0) { inStroke = true; sx = x; }
+    if (inStroke && col[x] === 0) { inStroke = false; spans.push([sx, x - 1]); }
   }
-  if(inStroke) spans.push([start, W-1]);
+  if (inStroke) spans.push([sx, W - 1]);
 
-  // 細かいノイズ除去（幅が小さすぎるもの除外）
-  const filtered = spans.filter(([s,e]) => (e-s+1)>=8);
+  // ノイズ除去＆近接マージ
+  const merged = [];
+  const MINW = 10, GAP = 6;
+  for (const [a, b] of spans) {
+    if (b - a + 1 < MINW) continue;
+    if (merged.length && a - merged[merged.length - 1][1] <= GAP) {
+      merged[merged.length - 1][1] = b;
+    } else {
+      merged.push([a, b]);
+    }
+  }
+  const targets = merged.length ? merged : [[0, W - 1]];
 
-  // 1桁も検出できない場合は全体を1つとして扱う
-  const targets = filtered.length>0 ? filtered : [[0,W-1]];
-
-  // 各スパンを28x28にリサイズ（縦横の余白を確保しつつアスペクト比維持）
-  const digitCanvases = [];
-  for(const [sx,ex] of targets){
-    const segW = ex-sx+1;
-    const seg = document.createElement('canvas');
-    const segCtx = seg.getContext('2d');
-    seg.width = 28; seg.height = 28;
-    segCtx.fillStyle = 'black'; segCtx.fillRect(0,0,28,28);
-
-    // 該当領域のバウンディングボックス（上下）を特定
-    let top=0, bottom=H-1;
-    outerTop:
-    for(let y=0;y<H;y++){
-      for(let x=sx;x<=ex;x++){
-        if(bw[y*W+x]>0){ top=y; break outerTop; }
+  // 28x28へ
+  const canvases = [];
+  for (const [sx2, ex2] of targets) {
+    const local = new Uint8ClampedArray(W * H);
+    for (let y = 0; y < H; y++) {
+      for (let x = sx2; x <= ex2; x++) {
+        local[y * W + x] = bwd[y * W + x];
       }
     }
-    outerBottom:
-    for(let y=H-1;y>=0;y--){
-      for(let x=sx;x<=ex;x++){
-        if(bw[y*W+x]>0){ bottom=y; break outerBottom; }
-      }
-    }
-    const segH = Math.max(1, bottom-top+1);
-
-    // スケール計算（最大 20x20 に収め、中心に配置）
-    const box = 20;
-    const scale = Math.min(box/segW, box/segH);
-    const dw = Math.max(1, Math.round(segW*scale));
-    const dh = Math.max(1, Math.round(segH*scale));
-    const dx = Math.floor((28 - dw)/2);
-    const dy = Math.floor((28 - dh)/2);
-
-    // draw
-    const crop = document.createElement('canvas');
-    crop.width = segW; crop.height = segH;
-    const cropCtx = crop.getContext('2d');
-    cropCtx.putImageData(new ImageData(
-      new Uint8ClampedArray(segW*segH*4), segW, segH
-    ),0,0); // placeholder to allocate
-
-    // 手早く描画：元キャンバスから drawImage（sx,top,segW,segH）
-    segCtx.imageSmoothingEnabled = true;
-    segCtx.drawImage(tmp, sx, top, segW, segH, dx, dy, dw, dh);
-
-    digitCanvases.push(seg);
+    const can = centerAndResize(local, W, H);
+    if (can) canvases.push(can);
   }
-  return digitCanvases;
+  return canvases;
 }
 
-async function predictNumber(){
-  if(!model){
-    // モデル未ロード時は読み込み待ちのメッセージ
+// ===== 推論（しきい値緩和 & 上位候補救済） =====
+async function predictNumber() {
+  if (!model) {
     feedback('モデル読み込み中…');
     await loadModel().catch(()=>{});
-    if(!model){ throw new Error('model not loaded'); }
+    if (!model) throw new Error('model not loaded');
   }
-  if(paths.length===0) throw new Error('empty');
+  if (paths.length === 0) throw new Error('empty');
 
-  // 1) 表示キャンバスを再描画（太線をビットマップ化）
   redrawAll();
-
-  // 2) 分割して各桁を推論
   const digits = canvasToDigits(els.canvas);
-  const preds = [];
-  for(const dc of digits){
-    const t = tf.tidy(()=>{
-      const img = tf.browser.fromPixels(dc, 1) // grayscale(まだRGB)→1ch扱い
-        .mean(2) // to 1 channel
+  if (digits.length === 0) throw new Error('no digits');
+
+  const numbers = [];
+  for (const dc of digits) {
+    const pred = tf.tidy(() => {
+      const img = tf.browser.fromPixels(dc, 1)
+        .mean(2)
         .toFloat()
-        .div(255.0)
-        .reshape([1,28,28,1]);
+        .div(255)
+        .reshape([1, 28, 28, 1]);
       return model.predict(img);
     });
-    const data = await predsToIndex(t);
-    preds.push(data);
-    t.dispose?.();
-  }
-  // 低信頼のときはフォールバック：-1 とする
-  const numbers = preds.map(p => (p.conf>0.5 ? p.digit : -1));
-  if(numbers.includes(-1)) throw new Error('unconfident');
+    const data = await pred.data();
+    pred.dispose();
 
-  // 桁を連結して整数化
-  const num = parseInt(numbers.join(''), 10);
-  if(Number.isNaN(num)) throw new Error('nan');
-  return num;
-}
-async function predsToIndex(t){
-  const arr = await t.data();
-  let maxI=0, maxV=arr[0];
-  for(let i=1;i<10;i++){
-    if(arr[i]>maxV){ maxV=arr[i]; maxI=i; }
+    const arr = Array.from(data).map((v, i) => ({i, v})).sort((a,b)=>b.v-a.v);
+    const top1 = arr[0], top2 = arr[1];
+    const chosen = (top1.v >= 0.25) ? top1.i : (top2.v >= 0.22 ? top2.i : -1);
+
+    numbers.push(chosen);
   }
-  return {digit:maxI, conf:maxV};
+
+  if (numbers.includes(-1)) throw new Error('unconfident');
+  const num = parseInt(numbers.join(''), 10);
+  if (Number.isNaN(num)) throw new Error('nan');
+  return num;
 }
 
 // ===== イベント =====
@@ -340,7 +402,6 @@ els.submitBtn.addEventListener('click', async ()=>{
   try{
     userNumber = await predictNumber();
   }catch(e){
-    // フォールバック：簡易数値キーパッドで入力（環境依存や推論失敗時用）
     const fallback = prompt('手書きの認識に失敗しました。数字で入力してください:');
     if(fallback===null) return;
     const n = parseInt(fallback,10);
@@ -351,13 +412,12 @@ els.submitBtn.addEventListener('click', async ()=>{
   const ok = (userNumber === ans);
   if(ok){
     score += 5; // 20問×5点 = 100点
-    confetti && confetti({ particleCount: 80, spread: 60, origin:{ y: .7 } });
+    try{ confetti && confetti({ particleCount: 80, spread: 60, origin:{ y: .7 } }); }catch{}
   }
   feedback('', ok);
 
   history.push({ l:a, r:b, ans, user:userNumber, ok });
 
-  // 次へ
   setTimeout(()=>{
     if(idx<19){
       idx++;
@@ -382,33 +442,46 @@ function openModal(show){
   els.tableModal.setAttribute('aria-hidden', show ? 'false':'true');
 }
 
-function buildKuku(){
+// 「1×1=1 | 2×1=2」形式の表
+function buildKukuExpressions(){
   const root = document.getElementById('kukutable');
-  const frag = document.createDocumentFragment();
-  // 見出し行
-  const hd = document.createElement('div');
-  hd.className = 'hd cell h'; hd.textContent = '×';
-  frag.appendChild(hd);
-  for(let j=1;j<=9;j++){
-    const c = document.createElement('div');
-    c.className='hd cell h'; c.textContent=j;
-    frag.appendChild(c);
-  }
-  for(let i=1;i<=9;i++){
-    const r = document.createElement('div');
-    r.className='hd cell h'; r.textContent=i;
-    frag.appendChild(r);
-    for(let j=1;j<=9;j++){
-      const c = document.createElement('div');
-      c.className='cell'; c.textContent = (i*j);
-      frag.appendChild(c);
+  root.innerHTML = '';
+
+  const nav = document.createElement('div');
+  nav.className = 'kuku-nav';
+  const groups = [[1,2],[3,4],[5,6],[7,8],[9]];
+  let current = 0;
+
+  const render = ()=>{
+    const body = document.createElement('div');
+    body.id = 'kuku-body';
+    for(let y=1; y<=9; y++){
+      const a = groups[current][0];
+      const b = groups[current][1] || null;
+      const left = `${a}×${y}=${a*y}`;
+      const right = b ? `${b}×${y}=${b*y}` : '';
+      const line = document.createElement('div');
+      line.className = 'kline';
+      line.innerHTML = b ? `<span>${left}</span><span>${right}</span>` : `<span>${left}</span>`;
+      body.appendChild(line);
     }
-  }
-  root.appendChild(frag);
+    const old = root.querySelector('#kuku-body');
+    if (old) old.replaceWith(body); else root.appendChild(body);
+  };
+
+  groups.forEach((g, i)=>{
+    const btn = document.createElement('button');
+    btn.className = 'btn ghost';
+    btn.textContent = g.length===2 ? `${g[0]} & ${g[1]}` : `${g[0]}`;
+    btn.addEventListener('click', ()=>{ current = i; render(); });
+    nav.appendChild(btn);
+  });
+  root.appendChild(nav);
+  render();
 }
 
 // 初期化
-buildKuku();
+buildKukuExpressions();
 makeQuiz();
 
 // 使いやすさ：ダブルタップ拡大の誤発火対策（iOS）

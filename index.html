@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>九九トレーナー（手書き）</title>
+  <title>かけざん れんしゅう</title>
   <link rel="stylesheet" href="./styles.css" />
   <!-- TensorFlow.js -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js" defer></script>
@@ -14,7 +14,7 @@
 <body>
   <header class="app-header">
     <div class="hdr-left">
-      <span class="brand">九九トレーナー</span>
+      <span class="brand">かけざん れんしゅう</span>
     </div>
     <div class="hdr-right">
       <button id="showTableBtn" class="btn ghost">表を見る</button>
@@ -47,12 +47,8 @@
         <div class="canvas-shell">
           <canvas id="drawCanvas" width="340" height="160"></canvas>
           <div class="canvas-actions">
-            <button id="undoBtn" class="btn icon">
-              ↺ 取り消し
-            </button>
-            <button id="clearBtn" class="btn icon">
-              ⌫ クリア
-            </button>
+            <button id="undoBtn" class="btn icon">↺ 取り消し</button>
+            <button id="clearBtn" class="btn icon">⌫ クリア</button>
           </div>
         </div>
       </div>
@@ -61,7 +57,7 @@
         <button id="submitBtn" class="btn primary">送信</button>
       </div>
 
-      <p class="hint">※ 2桁の数字（例: 81）も1行で続けて書いてOKです。</p>
+      <p class="hint">※ 2桁の数字（例: 81）も1行で続けて書いてOKです。桁の間は少し空けると正確です。</p>
 
       <div id="fx" class="fx"></div>
     </section>
