@@ -1,5 +1,9 @@
-// app.js
-// 九九・出題管理・手書き認識（さらに寛容 + 失敗時は数字キーパッド）・UI
+// app.js v4
+// ・手書き認識の“結果”をその場で表示（何と認識したか可視化）
+// ・正解＝ a*b と、ユーザー回答（数値）を比較して判定
+// ・九九表は1画面グリッド（1×1→9×9、式表示）
+// ・認識は Otsu + クロージング + 重心センタリング、各桁の top2 候補も表示
+// ・失敗時は数字キーパッドにフォールバック
 
 const els = {
   qNo: document.getElementById('qNo'),
@@ -15,17 +19,19 @@ const els = {
   clearBtn: document.getElementById('clearBtn'),
   againBtn: document.getElementById('againBtn'),
   restartBtn: document.getElementById('restartBtn'),
-  showTableBtn: document.getElementById('showTableBtn'),
-  tableModal: document.getElementById('tableModal'),
-  closeModal: document.getElementById('closeModal'),
   fx: document.getElementById('fx'),
   canvas: document.getElementById('drawCanvas'),
   openNumpadBtn: document.getElementById('openNumpadBtn'),
+  // numpad
   npModal: document.getElementById('numpadModal'),
   npDisplay: document.getElementById('npDisplay'),
   npOk: document.getElementById('npOk'),
   npCancel: document.getElementById('npCancel'),
   npBk: document.getElementById('npBk'),
+  // debug
+  recogText: document.getElementById('recogText'),
+  // kuku grid
+  kukuGrid: document.getElementById('kukuGrid'),
 };
 
 // ===== 手書きキャンバス =====
@@ -87,7 +93,6 @@ function endDraw(ev){
   ev.preventDefault(); drawing = false;
   if(currentPath.length>0) paths.push(currentPath);
 }
-
 ['mousedown','touchstart'].forEach(e=>els.canvas.addEventListener(e,startDraw,{passive:false}));
 ['mousemove','touchmove'].forEach(e=>els.canvas.addEventListener(e,moveDraw,{passive:false}));
 ['mouseup','mouseleave','touchend','touchcancel'].forEach(e=>els.canvas.addEventListener(e,endDraw,{passive:false}));
@@ -104,11 +109,11 @@ function redrawAll(){
 els.clearBtn.addEventListener('click', ()=>{ paths = []; redrawAll(); feedback(''); });
 els.undoBtn.addEventListener('click', ()=>{ paths.pop(); redrawAll(); feedback(''); });
 
-// ===== 九九出題 =====
+// ===== 九九出題＆判定（正しく比較） =====
 let quiz = [];
 let idx = 0;
 let score = 0;
-let history = []; // {l,r,ans,user,ok}
+let history = []; // {l,r,ans,user,ok,recogDbg}
 
 function makeQuiz(){
   const all = [];
@@ -124,6 +129,7 @@ function updateUI(){
   els.right.textContent = String(quiz[idx][1]);
   els.score.textContent = String(score);
   paths = []; redrawAll(); feedback('');
+  els.recogText.textContent = '—';
 }
 
 function feedback(msg, ok=null){
@@ -141,7 +147,7 @@ function showResult(){
   div.innerHTML = '';
   history.forEach((h,i)=>{
     const p = document.createElement('p');
-    p.innerHTML = `Q${i+1}: ${h.l}×${h.r}＝<strong>${h.ans}</strong> ／ あなたの回答：<strong class="${h.ok?'ok':'ng'}">${h.user}</strong>`;
+    p.innerHTML = `Q${i+1}: ${h.l}×${h.r}＝<strong>${h.ans}</strong> ／ あなた：<strong class="${h.ok?'ok':'ng'}">${h.user}</strong> ／ 認識: <span class="muted">${h.recogDbg}</span>`;
     div.appendChild(p);
   });
 }
@@ -154,7 +160,7 @@ async function loadModel(){
 }
 loadModel().catch(console.error);
 
-// ===== 前処理（さらに寛容：Otsu + クロージング = 膨張→収縮） =====
+// ===== 画像前処理（Otsu + クロージング + 重心センタリング） =====
 function otsuThreshold(gray){
   const hist = new Array(256).fill(0); for(const v of gray) hist[v]++;
   const total = gray.length;
@@ -222,9 +228,8 @@ function centerAndResize(bw,W,H){
   const can=document.createElement('canvas'); can.width=28; can.height=28;
   const c2=can.getContext('2d');
 
-  // 重心が中央に来るよう微調整（±2px）
-  const dx=Math.floor((28-dw)/2) + Math.round((14 - cx*scale%28)/8);
-  const dy=Math.floor((28-dh)/2) + Math.round((14 - cy*scale%28)/8);
+  const dx=Math.floor((28-dw)/2);
+  const dy=Math.floor((28-dh)/2);
 
   const src=document.createElement('canvas'); src.width=segW; src.height=segH;
   const sctx=src.getContext('2d');
@@ -255,10 +260,10 @@ function canvasToDigits(canvas){
   const bw=new Uint8ClampedArray(W*H);
   for(let i=0;i<g.length;i++) bw[i] = g[i] > thr ? 1 : 0;
 
-  // 途切れを繋ぐ（膨張→収縮＝クロージング）
+  // クロージング
   const bwd = erode(dilate(bw,W,H), W, H);
 
-  // 桁分割
+  // 桁分割（縦プロファイル）
   const col=new Uint32Array(W);
   for(let x=0;x<W;x++){ let s=0; for(let y=0;y<H;y++) s+=bwd[y*W+x]; col[x]=s; }
   const spans=[]; let on=false, sx=0;
@@ -283,43 +288,26 @@ function canvasToDigits(canvas){
   return canvases;
 }
 
-// ===== 推論：各桁 top2 を保持し、正解と一致する組み合わせがあれば採用 =====
-async function predictCandidates(){
-  if(!model){ feedback('モデル読み込み中…'); await loadModel().catch(()=>{}); if(!model) throw new Error('model not loaded'); }
+// ===== 推論（各桁 top2 を保持）＋ デバッグ文字列を返す
+async function recognize(){
+  if(!model){ await loadModel().catch(()=>{}); if(!model) throw new Error('model not loaded'); }
   if(paths.length===0) throw new Error('empty');
   redrawAll();
   const digits=canvasToDigits(els.canvas);
   if(digits.length===0) throw new Error('no digits');
 
-  const perDigit=[];
+  const textParts=[]; // 「8(0.62)/1(0.21) | 1(0.88)」のように表示
+  const numbers=[];
   for(const dc of digits){
     const pred=tf.tidy(()=> tf.browser.fromPixels(dc,1).mean(2).toFloat().div(255).reshape([1,28,28,1]).asType('float32'));
     const data=await model.predict(pred).data(); pred.dispose();
     const arr=Array.from(data).map((v,i)=>({i,v})).sort((a,b)=>b.v-a.v);
-    // しきい値を緩く（top1>=0.18 で採用、足りなければ top2>=0.15）
-    const cand=[];
-    if(arr[0].v>=0.18) cand.push(arr[0]);
-    if(arr[1].v>=0.15) cand.push(arr[1]);
-    // それでも空なら top1 を入れる
-    if(cand.length===0) cand.push(arr[0]);
-    perDigit.push(cand.slice(0,2));
+    const top1=arr[0], top2=arr[1];
+    numbers.push(top1.i);
+    textParts.push(`${top1.i}(${top1.v.toFixed(2)})` + (top2?`/${top2.i}(${top2.v.toFixed(2)})`:''));
   }
-  return perDigit;
-}
-
-// perDigit = [[{i,v},{i,v}], ...] から候補数字の組み合わせを列挙（最大 2^3=8 通りまで実用十分）
-function combineCandidates(perDigit){
-  const out=[];
-  function dfs(pos, digits, conf){
-    if(pos===perDigit.length){ out.push({num: parseInt(digits.join(''),10), conf}); return; }
-    for(const c of perDigit[pos]){
-      dfs(pos+1, digits.concat(c.i), conf * c.v);
-    }
-  }
-  dfs(0, [], 1);
-  // 信頼度で降順
-  out.sort((a,b)=>b.conf - a.conf);
-  return out;
+  const num = parseInt(numbers.join(''),10);
+  return { num, dbg: textParts.join(' | ') };
 }
 
 // ===== 数字キーパッド =====
@@ -349,40 +337,38 @@ els.npCancel.addEventListener('click', closeNumpad);
 els.npBk.addEventListener('click', ()=>{ els.npDisplay.textContent = els.npDisplay.textContent.slice(0,-1); });
 els.openNumpadBtn.addEventListener('click', ()=> openNumpad(''));
 
-// ===== 回答処理 =====
+// ===== 回答処理（認識→表示→比較→判定） =====
 els.submitBtn.addEventListener('click', async ()=>{
   const [a,b] = quiz[idx];
   const ans = a*b;
   let userNumber = null;
-  let ok = false;
+  let recogDbg = '';
 
   try{
-    const perDigit = await predictCandidates();
-    const combos = combineCandidates(perDigit).slice(0,8); // 上位8通りだけ試す
-    // どれかが正解ならそれを採用（認識の取りこぼし救済）
-    const hit = combos.find(c => c.num === ans);
-    if(hit){ userNumber = hit.num; ok = true; }
-    else{
-      // 正解は無かった → 最も確からしい値を回答として採用
-      userNumber = combos[0]?.num ?? NaN;
-      ok = (userNumber === ans);
-    }
+    const {num, dbg} = await recognize();
+    userNumber = num;
+    recogDbg = dbg;
+    els.recogText.textContent = `${String(num)} 〔 ${dbg} 〕`;
   }catch(e){
-    // 推論失敗 → 数字キーパッドへ
+    // 推論失敗 → 数字キーパッド
     const fallback = await openNumpad('');
     if(fallback===null) return;
     const n = parseInt(fallback,10);
     if(Number.isNaN(n)){ feedback('数字を入力してください'); return; }
-    userNumber = n; ok = (userNumber === ans);
+    userNumber = n;
+    recogDbg = 'manual';
+    els.recogText.textContent = `${String(n)} 〔 manual 〕`;
   }
 
+  // ★ 判定は「数値」で厳密に比較 ★
+  const ok = (Number(userNumber) === Number(ans));
   if(ok){
     score += 5; // 20問×5点 = 100点
     try{ confetti && confetti({ particleCount: 80, spread: 60, origin:{ y: .7 } }); }catch{}
   }
   feedback('', ok);
 
-  history.push({ l:a, r:b, ans, user:userNumber, ok });
+  history.push({ l:a, r:b, ans, user:userNumber, ok, recogDbg });
 
   setTimeout(()=>{
     if(idx<19){ idx++; updateUI(); }
@@ -393,57 +379,54 @@ els.submitBtn.addEventListener('click', async ()=>{
 els.againBtn.addEventListener('click', ()=>{ els.resultCard.classList.add('hidden'); els.quizCard.classList.remove('hidden'); makeQuiz(); });
 els.restartBtn.addEventListener('click', ()=>{ els.resultCard.classList.add('hidden'); els.quizCard.classList.remove('hidden'); makeQuiz(); });
 
-// モーダル（九九表）
-els.showTableBtn.addEventListener('click', ()=>{
-  buildKukuExpressions(); // 毎回再生成（キャッシュ/古いJS対策）
-  openModal(true);
-});
-els.closeModal.addEventListener('click', ()=> openModal(false));
-els.tableModal.querySelector('.modal-backdrop').addEventListener('click', ()=> openModal(false));
-function openModal(show){
-  els.tableModal.classList.toggle('hidden', !show);
-  els.tableModal.setAttribute('aria-hidden', show ? 'false':'true');
-}
+// ===== 九九表（1画面／式表示） =====
+function buildKukuGrid(){
+  const wrap = document.createElement('div');
+  wrap.className = 'kuku-grid';
 
-// 「1×1=1 | 2×1=2」形式の表
-function buildKukuExpressions(){
-  const root = document.getElementById('kukutable');
-  root.innerHTML = '';
-  const nav = document.createElement('div');
-  nav.className = 'kuku-nav';
-  const groups = [[1,2],[3,4],[5,6],[7,8],[9]];
-  let current = 0;
+  const table = document.createElement('table');
+  table.className = 'kuku-table';
+  const thead = document.createElement('thead');
+  const trh = document.createElement('tr');
 
-  const render = ()=>{
-    const body = document.createElement('div');
-    body.id = 'kuku-body';
-    for(let y=1; y<=9; y++){
-      const a = groups[current][0];
-      const b = groups[current][1] || null;
-      const left  = `${a}×${y}=${a*y}`;
-      const right = b ? `${b}×${y}=${b*y}` : '';
-      const line = document.createElement('div');
-      line.className = 'kline';
-      line.innerHTML = b ? `<span>${left}</span><span>${right}</span>` : `<span>${left}</span>`;
-      body.appendChild(line);
+  // 左上はヘッダ「×」
+  const corner = document.createElement('th');
+  corner.textContent = '×';
+  corner.className = 'hd';
+  trh.appendChild(corner);
+  for(let j=1;j<=9;j++){
+    const th = document.createElement('th');
+    th.textContent = j;
+    th.className = 'hd';
+    trh.appendChild(th);
+  }
+  thead.appendChild(trh);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  for(let i=1;i<=9;i++){
+    const tr = document.createElement('tr');
+    const th = document.createElement('th');
+    th.textContent = i;
+    th.className = 'hd';
+    tr.appendChild(th);
+    for(let j=1;j<=9;j++){
+      const td = document.createElement('td');
+      td.className = 'expr';
+      td.textContent = `${i}×${j}=${i*j}`; // 式表示
+      tr.appendChild(td);
     }
-    const old = root.querySelector('#kuku-body');
-    if (old) old.replaceWith(body); else root.appendChild(body);
-  };
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  wrap.appendChild(table);
 
-  groups.forEach((g,i)=>{
-    const btn = document.createElement('button');
-    btn.className = 'btn ghost';
-    btn.textContent = g.length===2 ? `${g[0]} & ${g[1]}` : `${g[0]}`;
-    btn.addEventListener('click', ()=>{ current=i; render(); });
-    nav.appendChild(btn);
-  });
-  root.appendChild(nav);
-  render();
+  els.kukuGrid.innerHTML = '';
+  els.kukuGrid.appendChild(wrap);
 }
 
 // 初期化
-buildKukuExpressions();
+buildKukuGrid();
 makeQuiz();
 
 // iOS ダブルタップ拡大の誤発火対策

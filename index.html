@@ -4,12 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>かけざん れんしゅう</title>
-  <link rel="stylesheet" href="./styles.css?v=3" />
+  <link rel="stylesheet" href="./styles.css?v=4" />
   <!-- TensorFlow.js -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js" defer></script>
   <!-- Confetti -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.9.3/confetti.min.js" defer></script>
-  <script src="./app.js?v=3" type="module" defer></script>
+  <script src="./app.js?v=4" type="module" defer></script>
 </head>
 <body>
   <header class="app-header">
@@ -17,7 +17,6 @@
       <span class="brand">かけざん れんしゅう</span>
     </div>
     <div class="hdr-right">
-      <button id="showTableBtn" class="btn ghost">表を見る</button>
       <button id="restartBtn" class="btn ghost">最初から</button>
     </div>
   </header>
@@ -58,11 +57,13 @@
         <button id="submitBtn" class="btn primary">送信</button>
       </div>
 
-      <p class="hint">
-        コツ：大きく・はっきり。2桁（例: 81）は1行で、桁の間を少し空けると正確です。
-      </p>
-
       <div id="fx" class="fx"></div>
+
+      <!-- 認識デバッグ表示 -->
+      <div class="debug">
+        <div><strong>認識結果：</strong><span id="recogText">—</span></div>
+        <div class="small muted">（各桁の上位候補も表示します）</div>
+      </div>
     </section>
 
     <section id="resultCard" class="card hidden">
@@ -73,19 +74,15 @@
         <button id="againBtn" class="btn primary">もう一度</button>
       </div>
     </section>
+
+    <!-- 九九表（1画面／式表示） -->
+    <section id="kukuPanel" class="card">
+      <h3>かけ算九九（1〜9）</h3>
+      <div id="kukuGrid" class="kuku-grid"></div>
+    </section>
   </main>
 
-  <!-- 九九表モーダル（式表示） -->
-  <div id="tableModal" class="modal hidden" aria-hidden="true">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-      <h3 id="modalTitle">かけ算九九（1〜9）</h3>
-      <div id="kukutable" class="kuku"></div>
-      <button id="closeModal" class="btn primary block">閉じる</button>
-    </div>
-  </div>
-
-  <!-- 数字キーパッド（推論失敗時や手動入力用） -->
+  <!-- 数字キーパッド -->
   <div id="numpadModal" class="modal hidden" aria-hidden="true">
     <div class="modal-backdrop"></div>
     <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="npTitle">
