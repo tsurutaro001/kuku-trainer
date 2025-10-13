@@ -4,9 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>かけざん れんしゅう</title>
-  <link rel="stylesheet" href="./styles.css?v=6.2" />
+  <link rel="stylesheet" href="./styles.css?v=6.3" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.9.3/confetti.min.js" defer></script>
-  <script src="./app.js?v=6.2" type="module" defer></script>
+  <script src="./app.js?v=6.3" type="module" defer></script>
 </head>
 <body>
   <header class="app-header">
@@ -66,12 +66,12 @@
     </section>
   </main>
 
-  <!-- 九九表モーダル（列×行：上ヘッダ=段, 左ヘッダ=かける数） -->
+  <!-- 九九表モーダル（列×行：上=段, 左=かける数） -->
   <div id="tableModal" class="modal hidden" aria-hidden="true">
     <div class="modal-backdrop"></div>
     <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <h3 id="modalTitle">🪴 かけ算九九（1〜9）</h3>
-      <div class="legend">上の数字＝<strong>だん</strong>（列）／ 左の数字＝<strong>かける数</strong>（行）</div>
+      <!-- 説明行は削除しました -->
       <div id="kukuGrid" class="kuku-grid"></div>
       <button id="closeModal" class="btn primary block">とじる</button>
     </div>

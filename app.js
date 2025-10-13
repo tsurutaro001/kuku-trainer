@@ -1,7 +1,7 @@
-// app.js v6.2
-// ・常設キーパッド方式（最大2桁）
-// ・九九表は「列×行」＝（列=段, 行=かける数）。セル表示は j×i。
-//   → 2の段は [上ヘッダ2の列] に「2×1, 2×2, …, 2×9」
+// app.js v6.3
+// ・ヘッダーはCSS側で横並び固定
+// ・表：列×行（セルは j×i）
+// ・エフェクトの表示時間を延長
 
 const els = {
   qNo: document.getElementById('qNo'),
@@ -32,7 +32,6 @@ let score = 0;
 let history = [];
 let currentInput = '';
 
-// ---- 出題作成（重複なし20問） ----
 function makeQuiz(){
   const all = [];
   for(let a=1;a<=9;a++){ for(let b=1;b<=9;b++){ all.push([a,b]); } }
@@ -56,9 +55,9 @@ function renderAnswer(){
   els.answerBox.textContent = currentInput.length ? currentInput : '□';
 }
 
-// ---- キーパッド ----
+/* キーパッド */
 function appendDigit(d){
-  if(currentInput.length >= 2) return; // 2桁まで
+  if(currentInput.length >= 2) return;
   if(currentInput === '0'){ currentInput = d; } else { currentInput += d; }
   renderAnswer();
 }
@@ -72,7 +71,7 @@ document.querySelectorAll('.key').forEach(btn=>{
 els.keyBk.addEventListener('click', backspace);
 els.keyClr.addEventListener('click', clearAnswer);
 
-// ---- 採点 ----
+/* 採点（演出時間を長めに） */
 els.submitBtn.addEventListener('click', ()=>{
   const [a,b] = quiz[idx];
   const ans = a*b;
@@ -82,17 +81,19 @@ els.submitBtn.addEventListener('click', ()=>{
   const ok = (user === ans);
 
   if(ok){
-    score += 5; // 20問×5点 = 100点
+    score += 5;
     try{ confetti && confetti({ particleCount: 120, spread: 70, origin:{ y: .7 } }); }catch{}
   }
   feedback('', ok);
 
   history.push({l:a, r:b, ans, user, ok});
 
+  // ⏱ 表示維持時間を延長（正解: 1.2s / 不正解: 1.6s）
+  const delay = ok ? 1200 : 1600;
   setTimeout(()=>{
     if(idx<19){ idx++; updateUI(); }
     else{ showResult(); }
-  }, ok ? 450 : 650);
+  }, delay);
 });
 
 function feedback(msg, ok=null){
@@ -118,7 +119,7 @@ function showResult(){
 els.againBtn.addEventListener('click', ()=>{ els.resultCard.classList.add('hidden'); els.quizCard.classList.remove('hidden'); makeQuiz(); });
 els.restartBtn.addEventListener('click', ()=>{ els.resultCard.classList.add('hidden'); els.quizCard.classList.remove('hidden'); makeQuiz(); });
 
-// ---- 九九表（列×行：セルは j×i）----
+/* 九九表（列×行：セルは j×i） */
 els.showTableBtn.addEventListener('click', ()=>{ buildKukuGrid(); openModal(true); });
 els.closeModal.addEventListener('click', ()=> openModal(false));
 els.tableModal.querySelector('.modal-backdrop').addEventListener('click', ()=> openModal(false));
@@ -127,7 +128,6 @@ function openModal(show){
   els.tableModal.classList.toggle('hidden', !show);
   els.tableModal.setAttribute('aria-hidden', show?'false':'true');
 }
-
 function buildKukuGrid(){
   const wrap=document.createElement('div');
   wrap.className='kuku-grid';
@@ -136,33 +136,30 @@ function buildKukuGrid(){
   const thead=document.createElement('thead');
   const trh=document.createElement('tr');
 
-  // 角：×、上ヘッダ：段（1..9）＝列
   const corner=document.createElement('th');
   corner.textContent='×';
   corner.className='hd';
   trh.appendChild(corner);
   for(let j=1;j<=9;j++){
     const th=document.createElement('th');
-    th.textContent=j;       // 列（段）
+    th.textContent=j; // 列（段）
     th.className='hd';
     trh.appendChild(th);
   }
   thead.appendChild(trh);
   table.appendChild(thead);
 
-  // 左ヘッダ：かける数（1..9）＝行
   const tbody=document.createElement('tbody');
   for(let i=1;i<=9;i++){
     const tr=document.createElement('tr');
     const th=document.createElement('th');
-    th.textContent=i;       // 行（かける数）
+    th.textContent=i; // 行（かける数）
     th.className='hd';
     tr.appendChild(th);
-
     for(let j=1;j<=9;j++){
       const td=document.createElement('td');
       td.className='expr';
-      td.textContent=`${j}×${i}=${i*j}`;  // ← 列×行（j×i）2の段は 2×1, 2×2, …
+      td.textContent=`${j}×${i}=${i*j}`; // 列×行
       tr.appendChild(td);
     }
     tbody.appendChild(tr);
@@ -174,5 +171,5 @@ function buildKukuGrid(){
   els.kukuGrid.appendChild(wrap);
 }
 
-// ---- 初期化 ----
+/* 初期化 */
 makeQuiz();
