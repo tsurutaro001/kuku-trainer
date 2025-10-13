@@ -4,12 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>かけざん れんしゅう</title>
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./styles.css?v=3" />
   <!-- TensorFlow.js -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js" defer></script>
   <!-- Confetti -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.9.3/confetti.min.js" defer></script>
-  <script src="./app.js" type="module" defer></script>
+  <script src="./app.js?v=3" type="module" defer></script>
 </head>
 <body>
   <header class="app-header">
@@ -49,6 +49,7 @@
           <div class="canvas-actions">
             <button id="undoBtn" class="btn icon">↺ 取り消し</button>
             <button id="clearBtn" class="btn icon">⌫ クリア</button>
+            <button id="openNumpadBtn" class="btn icon" title="数字で入力">123 数字入力</button>
           </div>
         </div>
       </div>
@@ -57,7 +58,9 @@
         <button id="submitBtn" class="btn primary">送信</button>
       </div>
 
-      <p class="hint">※ 2桁の数字（例: 81）も1行で続けて書いてOKです。桁の間は少し空けると正確です。</p>
+      <p class="hint">
+        コツ：大きく・はっきり。2桁（例: 81）は1行で、桁の間を少し空けると正確です。
+      </p>
 
       <div id="fx" class="fx"></div>
     </section>
@@ -72,13 +75,32 @@
     </section>
   </main>
 
-  <!-- 九九表モーダル -->
+  <!-- 九九表モーダル（式表示） -->
   <div id="tableModal" class="modal hidden" aria-hidden="true">
     <div class="modal-backdrop"></div>
     <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <h3 id="modalTitle">かけ算九九（1〜9）</h3>
       <div id="kukutable" class="kuku"></div>
       <button id="closeModal" class="btn primary block">閉じる</button>
+    </div>
+  </div>
+
+  <!-- 数字キーパッド（推論失敗時や手動入力用） -->
+  <div id="numpadModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="npTitle">
+      <h3 id="npTitle">数字を入力</h3>
+      <div id="npDisplay" class="np-display"> </div>
+      <div class="np-grid">
+        <button class="np">7</button><button class="np">8</button><button class="np">9</button>
+        <button class="np">4</button><button class="np">5</button><button class="np">6</button>
+        <button class="np">1</button><button class="np">2</button><button class="np">3</button>
+        <button class="np wide">0</button><button id="npBk" class="np">⌫</button>
+      </div>
+      <div class="actions">
+        <button id="npCancel" class="btn ghost">キャンセル</button>
+        <button id="npOk" class="btn primary">決定</button>
+      </div>
     </div>
   </div>
 </body>

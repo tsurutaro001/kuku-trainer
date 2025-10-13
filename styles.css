@@ -65,6 +65,7 @@ body{
 #summaryList .ok{color:var(--accent2)}
 #summaryList .ng{color:var(--danger)}
 
+/* モーダル */
 .modal{position:fixed; inset:0; display:grid; place-items:center}
 .modal.hidden{display:none}
 .modal-backdrop{position:absolute; inset:0; background:#0009}
@@ -74,7 +75,7 @@ body{
   max-height:85vh; overflow:auto;
 }
 
-/* 九九表（式形式） */
+/* 九九表（式表示） */
 .kuku-nav{display:flex; gap:8px; flex-wrap:wrap; margin:8px 0}
 .kline{
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
@@ -82,15 +83,21 @@ body{
   display:flex; justify-content:space-between; gap:12px;
 }
 .kline + .kline{margin-top:6px}
-
-/* 旧テーブルレイアウトの名残（未使用だが残しても無害） */
 .kuku{display:block}
-.kuku .hd{color:var(--muted); text-align:center; font-size:13px}
-.kuku .cell{
-  text-align:center; padding:8px 6px; background:#0d1019; border:1px solid #232a43; border-radius:8px;
-}
-.kuku .cell.h{background:#151a2b}
 
+/* 数字キーパッド */
+.np-display{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background:#0d1019; border:1px solid #232a43; border-radius:8px;
+  padding:10px; margin-bottom:10px; min-height:40px; font-size:28px; text-align:right;
+}
+.np-grid{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px;
+}
+.np{padding:12px 0; border-radius:10px; background:#1a1f30; color:var(--text); border:1px solid #2a3149; font-size:20px}
+.np.wide{grid-column: span 2}
+
+/* モバイル微調整 */
 @media (hover:none){
   .btn{padding:12px 16px; font-size:17px}
   .question{font-size:36px}
