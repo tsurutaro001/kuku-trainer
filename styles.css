@@ -1,0 +1,85 @@
+:root{
+  --bg: #0f1115; --card:#161922; --muted:#9aa3b2; --text:#ecf1f8;
+  --accent:#5ec2ff; --accent2:#66e3a2; --danger:#ff6b7a;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif;
+  background:linear-gradient(180deg,#0d0f14,#121521 40%,#0f1115);
+  color:var(--text);
+}
+.app-header{
+  position:sticky; top:0; z-index:10;
+  display:flex; justify-content:space-between; align-items:center;
+  padding:10px 12px; background:#0d1017cc; backdrop-filter: blur(8px); border-bottom:1px solid #1e2332;
+}
+.brand{font-weight:700; letter-spacing:0.02em}
+.btn{
+  -webkit-tap-highlight-color: transparent;
+  background:#22283a; color:var(--text); border:1px solid #2c3450; padding:10px 14px; border-radius:10px;
+  font-size:16px; line-height:1; cursor:pointer;
+}
+.btn:hover{filter:brightness(1.08)}
+.btn.primary{background:linear-gradient(180deg,#2b8cff,#1b6bff); border-color:#1a56ff}
+.btn.ghost{background:transparent; border-color:#2a3149}
+.btn.block{width:100%}
+.btn.icon{display:inline-flex; align-items:center; gap:.5rem}
+
+.container{max-width:720px; margin:16px auto; padding:0 12px}
+.status-bar{display:flex; justify-content:space-between; align-items:center; margin:8px 0 12px; color:var(--muted)}
+.card{
+  background:linear-gradient(180deg,#171a25,#121624);
+  border:1px solid #22283a; border-radius:16px; padding:16px; box-shadow: 0 10px 30px rgba(0,0,0,.25);
+}
+.hidden{display:none}
+
+.question-wrap .q-label{color:var(--muted); font-size:14px}
+.question{
+  display:flex; align-items:center; gap:10px; font-size:40px; letter-spacing:.02em; margin-top:6px;
+}
+.question .ansbox{display:inline-block; min-width:36px; border-bottom:2px dotted #3c4262; text-align:center}
+
+.draw-wrap{margin-top:14px}
+.draw-header{color:var(--muted); font-size:14px; margin-bottom:8px}
+.canvas-shell{
+  background:#0b0d13; border:1px dashed #2b3149; border-radius:12px; padding:10px;
+}
+#drawCanvas{
+  display:block; width:100%; height:auto; border-radius:10px; background:#0d1017;
+  touch-action:none;
+}
+.canvas-actions{display:flex; gap:8px; margin-top:10px; justify-content:flex-end}
+
+.actions{display:flex; justify-content:center; margin-top:16px}
+.hint{color:var(--muted); font-size:13px; margin-top:8px}
+
+.fx{min-height:28px; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:700}
+.fx.ok{color:var(--accent2); animation: pop .45s ease}
+.fx.ng{color:var(--danger); animation: shake .4s ease}
+@keyframes pop{0%{transform:scale(.7);opacity:.2} 80%{transform:scale(1.06)} 100%{transform:scale(1);opacity:1}}
+@keyframes shake{0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)}}
+
+.big{font-size:24px}
+#summaryList{margin-top:12px; color:var(--muted); font-size:14px}
+#summaryList .ok{color:var(--accent2)}
+#summaryList .ng{color:var(--danger)}
+
+.modal{position:fixed; inset:0; display:grid; place-items:center}
+.modal.hidden{display:none}
+.modal-backdrop{position:absolute; inset:0; background:#0009}
+.modal-content{
+  position:relative; z-index:1; width:min(680px,92vw);
+  background:#131829; border:1px solid #2a3149; border-radius:14px; padding:16px;
+  max-height:85vh; overflow:auto;
+}
+.kuku{display:grid; grid-template-columns:repeat(10,1fr); gap:6px; margin:12px 0}
+.kuku .hd{color:var(--muted); text-align:center; font-size:13px}
+.kuku .cell{
+  text-align:center; padding:8px 6px; background:#0d1019; border:1px solid #232a43; border-radius:8px;
+}
+.kuku .cell.h{background:#151a2b}
+@media (hover:none){
+  .btn{padding:12px 16px; font-size:17px}
+  .question{font-size:36px}
+}

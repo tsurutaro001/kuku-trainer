@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>九九トレーナー（手書き）</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <!-- TensorFlow.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js" defer></script>
+  <!-- Confetti -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.9.3/confetti.min.js" defer></script>
+  <script src="./app.js" type="module" defer></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="hdr-left">
+      <span class="brand">九九トレーナー</span>
+    </div>
+    <div class="hdr-right">
+      <button id="showTableBtn" class="btn ghost">表を見る</button>
+      <button id="restartBtn" class="btn ghost">最初から</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section id="statusBar" class="status-bar">
+      <div>問 <span id="qNo">1</span> / 20</div>
+      <div>スコア <span id="score">0</span> / 100</div>
+    </section>
+
+    <section id="quizCard" class="card">
+      <div class="question-wrap">
+        <div class="q-label">問題</div>
+        <div class="question">
+          <span id="left">？</span>
+          <span class="op">×</span>
+          <span id="right">？</span>
+          <span class="eq">＝</span>
+          <span class="ansbox">□</span>
+        </div>
+      </div>
+
+      <div class="draw-wrap">
+        <div class="draw-header">
+          回答ボックス（指/ペン/マウスで数字を書いてください）
+        </div>
+        <div class="canvas-shell">
+          <canvas id="drawCanvas" width="340" height="160"></canvas>
+          <div class="canvas-actions">
+            <button id="undoBtn" class="btn icon">
+              ↺ 取り消し
+            </button>
+            <button id="clearBtn" class="btn icon">
+              ⌫ クリア
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="submitBtn" class="btn primary">送信</button>
+      </div>
+
+      <p class="hint">※ 2桁の数字（例: 81）も1行で続けて書いてOKです。</p>
+
+      <div id="fx" class="fx"></div>
+    </section>
+
+    <section id="resultCard" class="card hidden">
+      <h2>結果</h2>
+      <p class="big">スコア：<span id="finalScore">0</span> / 100</p>
+      <div id="summaryList"></div>
+      <div class="actions">
+        <button id="againBtn" class="btn primary">もう一度</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- 九九表モーダル -->
+  <div id="tableModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <h3 id="modalTitle">かけ算九九（1〜9）</h3>
+      <div id="kukutable" class="kuku"></div>
+      <button id="closeModal" class="btn primary block">閉じる</button>
+    </div>
+  </div>
+</body>
+</html>
