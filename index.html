@@ -4,12 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>かけざん れんしゅう</title>
-  <link rel="stylesheet" href="./styles.css?v=5" />
-  <!-- TensorFlow.js -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js" defer></script>
-  <!-- Confetti -->
+  <link rel="stylesheet" href="./styles.css?v=6" />
+  <!-- Confetti（正解演出） -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.9.3/confetti.min.js" defer></script>
-  <script src="./app.js?v=5" type="module" defer></script>
+  <script src="./app.js?v=6" type="module" defer></script>
 </head>
 <body>
   <header class="app-header">
@@ -36,23 +34,19 @@
           <span class="op">×</span>
           <span id="right">？</span>
           <span class="eq">＝</span>
-          <span class="ansbox">□</span>
+          <span id="answerBox" class="ansbox">□</span>
         </div>
       </div>
 
-      <div class="draw-wrap">
-        <div class="draw-header">
-          回答ボックス（指/ペン/マウスで数字を書いてください）
-        </div>
-        <div class="canvas-shell">
-          <canvas id="drawCanvas" width="340" height="160"></canvas>
-          <div class="canvas-actions">
-            <button id="undoBtn" class="btn icon">↺ 取り消し</button>
-            <button id="clearBtn" class="btn icon">⌫ クリア</button>
-            <button id="previewBtn" class="btn icon" title="認識してみる">👁 認識プレビュー</button>
-            <button id="openCandidatesBtn" class="btn icon" title="候補から選ぶ">🎯 候補から選ぶ</button>
-            <button id="openNumpadBtn" class="btn icon" title="数字で入力">123 数字入力</button>
-          </div>
+      <!-- キーパッド -->
+      <div class="pad">
+        <div class="pad-grid">
+          <button class="key">7</button><button class="key">8</button><button class="key">9</button>
+          <button class="key">4</button><button class="key">5</button><button class="key">6</button>
+          <button class="key">1</button><button class="key">2</button><button class="key">3</button>
+          <button class="key wide">0</button>
+          <button id="keyBk" class="key">⌫</button>
+          <button id="keyClr" class="key danger">クリア</button>
         </div>
       </div>
 
@@ -61,12 +55,6 @@
       </div>
 
       <div id="fx" class="fx"></div>
-
-      <!-- 認識デバッグ（固定表示） -->
-      <div class="debug">
-        <div><strong>認識結果：</strong><span id="recogText">—</span></div>
-        <div class="small muted">各桁の上位候補も表示します（例：<code>8(0.62)/1(0.21) | 1(0.88)</code>）。プレビュー後もここに残ります。</div>
-      </div>
     </section>
 
     <section id="resultCard" class="card hidden">
@@ -86,37 +74,6 @@
       <h3 id="modalTitle">かけ算九九（1〜9）</h3>
       <div id="kukuGrid" class="kuku-grid"></div>
       <button id="closeModal" class="btn primary block">閉じる</button>
-    </div>
-  </div>
-
-  <!-- 数字キーパッド -->
-  <div id="numpadModal" class="modal hidden" aria-hidden="true">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="npTitle">
-      <h3 id="npTitle">数字を入力</h3>
-      <div id="npDisplay" class="np-display"> </div>
-      <div class="np-grid">
-        <button class="np">7</button><button class="np">8</button><button class="np">9</button>
-        <button class="np">4</button><button class="np">5</button><button class="np">6</button>
-        <button class="np">1</button><button class="np">2</button><button class="np">3</button>
-        <button class="np wide">0</button><button id="npBk" class="np">⌫</button>
-      </div>
-      <div class="actions">
-        <button id="npCancel" class="btn ghost">キャンセル</button>
-        <button id="npOk" class="btn primary">決定</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 認識候補選択モーダル -->
-  <div id="candModal" class="modal hidden" aria-hidden="true">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="candTitle">
-      <h3 id="candTitle">認識候補を選んでください</h3>
-      <div id="candButtons" class="cand-grid"></div>
-      <div class="actions">
-        <button id="candCancel" class="btn ghost">閉じる</button>
-      </div>
     </div>
   </div>
 </body>
