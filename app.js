@@ -1,9 +1,7 @@
-// app.js v4
-// ・手書き認識の“結果”をその場で表示（何と認識したか可視化）
-// ・正解＝ a*b と、ユーザー回答（数値）を比較して判定
-// ・九九表は1画面グリッド（1×1→9×9、式表示）
-// ・認識は Otsu + クロージング + 重心センタリング、各桁の top2 候補も表示
-// ・失敗時は数字キーパッドにフォールバック
+// app.js v5
+// ・表：ポップアップに戻す（1×1→9×9の1画面グリッド）
+// ・認識：プレビューで固定表示／候補から選ぶモーダル／数字キーパッド
+// ・採点：各設問ごとに ans=a*b を保持し、数値で比較
 
 const els = {
   qNo: document.getElementById('qNo'),
@@ -15,23 +13,32 @@ const els = {
   finalScore: document.getElementById('finalScore'),
   summaryList: document.getElementById('summaryList'),
   submitBtn: document.getElementById('submitBtn'),
+  previewBtn: document.getElementById('previewBtn'),
   undoBtn: document.getElementById('undoBtn'),
   clearBtn: document.getElementById('clearBtn'),
   againBtn: document.getElementById('againBtn'),
   restartBtn: document.getElementById('restartBtn'),
   fx: document.getElementById('fx'),
   canvas: document.getElementById('drawCanvas'),
+  // 表モーダル
+  showTableBtn: document.getElementById('showTableBtn'),
+  tableModal: document.getElementById('tableModal'),
+  closeModal: document.getElementById('closeModal'),
+  kukuGrid: document.getElementById('kukuGrid'),
+  // 数値入力
   openNumpadBtn: document.getElementById('openNumpadBtn'),
-  // numpad
   npModal: document.getElementById('numpadModal'),
   npDisplay: document.getElementById('npDisplay'),
   npOk: document.getElementById('npOk'),
   npCancel: document.getElementById('npCancel'),
   npBk: document.getElementById('npBk'),
-  // debug
+  // 候補選択
+  openCandidatesBtn: document.getElementById('openCandidatesBtn'),
+  candModal: document.getElementById('candModal'),
+  candButtons: document.getElementById('candButtons'),
+  candCancel: document.getElementById('candCancel'),
+  // デバッグ
   recogText: document.getElementById('recogText'),
-  // kuku grid
-  kukuGrid: document.getElementById('kukuGrid'),
 };
 
 // ===== 手書きキャンバス =====
@@ -106,10 +113,7 @@ function redrawAll(){
   }
 }
 
-els.clearBtn.addEventListener('click', ()=>{ paths = []; redrawAll(); feedback(''); });
-els.undoBtn.addEventListener('click', ()=>{ paths.pop(); redrawAll(); feedback(''); });
-
-// ===== 九九出題＆判定（正しく比較） =====
+// ===== 九九出題＆判定 =====
 let quiz = [];
 let idx = 0;
 let score = 0;
@@ -160,7 +164,7 @@ async function loadModel(){
 }
 loadModel().catch(console.error);
 
-// ===== 画像前処理（Otsu + クロージング + 重心センタリング） =====
+// ===== 前処理（Otsu + クロージング + 28x28） =====
 function otsuThreshold(gray){
   const hist = new Array(256).fill(0); for(const v of gray) hist[v]++;
   const total = gray.length;
@@ -204,45 +208,35 @@ function erode(bw,W,H){
   }
   return out;
 }
+function centerAndResizeTo28(canSrc, bbox){
+  const {img,W,H} = canSrc; // ImageData + size
+  const {minX,minY,maxX,maxY} = bbox;
+  const sw = maxX-minX+1, sh = maxY-minY+1;
+  const PAD=6, segW=sw+PAD*2, segH=sh+PAD*2;
 
-function centerAndResize(bw,W,H){
-  let minX=W, minY=H, maxX=-1, maxY=-1, mass=0, cx=0, cy=0;
-  for(let y=0;y<H;y++) for(let x=0;x<W;x++){
-    const v=bw[y*W+x]; if(v){ if(x<minX)minX=x; if(y<minY)minY=y; if(x>maxX)maxX=x; if(y>maxY)maxY=y; mass++; cx+=x; cy+=y; }
+  const src = document.createElement('canvas'); src.width=segW; src.height=segH;
+  const sctx = src.getContext('2d');
+  const seg = sctx.createImageData(segW,segH);
+  // 白=255、黒=0。img.dataは0/1で与える
+  for(let y=0;y<sh;y++){
+    for(let x=0;x<sw;x++){
+      const v = img[(minY+y)*W + (minX+x)] ? 255 : 0;
+      const p = ((y+PAD)*segW + (x+PAD)) * 4;
+      seg.data[p]=seg.data[p+1]=seg.data[p+2]=v; seg.data[p+3]=255;
+    }
   }
-  if(mass===0) return null; cx/=mass; cy/=mass;
+  sctx.putImageData(seg,0,0);
 
-  const sw=maxX-minX+1, sh=maxY-minY+1, PAD=6;
-  const segW=sw+PAD*2, segH=sh+PAD*2;
-  const seg=new Uint8ClampedArray(segW*segH);
-
-  for(let y=0;y<sh;y++) for(let x=0;x<sw;x++){
-    const v=bw[(minY+y)*W+(minX+x)];
-    seg[(y+PAD)*segW+(x+PAD)] = v?255:0;
-  }
-
+  const can = document.createElement('canvas'); can.width=28; can.height=28;
+  const c2 = can.getContext('2d');
   const scale=Math.min(20/segW, 20/segH);
   const dw=Math.max(1,Math.round(segW*scale));
   const dh=Math.max(1,Math.round(segH*scale));
-
-  const can=document.createElement('canvas'); can.width=28; can.height=28;
-  const c2=can.getContext('2d');
-
   const dx=Math.floor((28-dw)/2);
   const dy=Math.floor((28-dh)/2);
-
-  const src=document.createElement('canvas'); src.width=segW; src.height=segH;
-  const sctx=src.getContext('2d');
-  const imgData=sctx.createImageData(segW,segH);
-  for(let i=0;i<seg.length;i++){
-    imgData.data[i*4+0]=seg[i]; imgData.data[i*4+1]=seg[i]; imgData.data[i*4+2]=seg[i]; imgData.data[i*4+3]=255;
-  }
-  sctx.putImageData(imgData,0,0);
-
   c2.fillStyle='black'; c2.fillRect(0,0,28,28);
   c2.imageSmoothingEnabled=true;
   c2.drawImage(src,0,0,segW,segH,dx,dy,dw,dh);
-
   return can;
 }
 
@@ -252,20 +246,22 @@ function canvasToDigits(canvas){
   const tctx=tmp.getContext('2d');
   tctx.fillStyle='#000'; tctx.fillRect(0,0,W,H); tctx.drawImage(canvas,0,0,W,H);
 
-  const img=tctx.getImageData(0,0,W,H);
-  const g=new Uint8ClampedArray(W*H);
-  for(let i=0,p=0;i<img.data.length;i+=4,p++){ const v=(img.data[i]+img.data[i+1]+img.data[i+2])/3; g[p]=255 - v; }
-
+  const im=tctx.getImageData(0,0,W,H); const g=new Uint8ClampedArray(W*H);
+  for(let i=0,p=0;i<im.data.length;i+=4,p++){ const v=(im.data[i]+im.data[i+1]+im.data[i+2])/3; g[p]=255 - v; }
   const thr=otsuThreshold(g);
-  const bw=new Uint8ClampedArray(W*H);
-  for(let i=0;i<g.length;i++) bw[i] = g[i] > thr ? 1 : 0;
+  const bw=new Uint8ClampedArray(W*H); for(let i=0;i<g.length;i++) bw[i] = g[i] > thr ? 1 : 0;
+  const closed = erode(dilate(bw,W,H), W, H);
 
-  // クロージング
-  const bwd = erode(dilate(bw,W,H), W, H);
+  // bbox 全体
+  let minX=W, minY=H, maxX=-1, maxY=-1;
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+    if(closed[y*W+x]){ if(x<minX)minX=x; if(y<minY)minY=y; if(x>maxX)maxX=x; if(y>maxY)maxY=y; }
+  }
+  if(maxX<0) return [];
 
   // 桁分割（縦プロファイル）
   const col=new Uint32Array(W);
-  for(let x=0;x<W;x++){ let s=0; for(let y=0;y<H;y++) s+=bwd[y*W+x]; col[x]=s; }
+  for(let x=0;x<W;x++){ let s=0; for(let y=0;y<H;y++) s+=closed[y*W+x]; col[x]=s; }
   const spans=[]; let on=false, sx=0;
   for(let x=0;x<W;x++){ if(!on && col[x]>0){ on=true; sx=x; } if(on && col[x]===0){ on=false; spans.push([sx,x-1]); } }
   if(on) spans.push([sx,W-1]);
@@ -277,38 +273,86 @@ function canvasToDigits(canvas){
     if(merged.length && a-merged[merged.length-1][1]<=GAP){ merged[merged.length-1][1]=b; }
     else merged.push([a,b]);
   }
-  const targets=merged.length?merged:[[0,W-1]];
+  const targets=merged.length?merged:[[minX,maxX]];
 
+  // 28x28 作成
   const canvases=[];
-  for(const [sx2,ex2] of targets){
-    const local=new Uint8ClampedArray(W*H);
-    for(let y=0;y<H;y++) for(let x=sx2;x<=ex2;x++){ local[y*W+x]=bwd[y*W+x]; }
-    const can=centerAndResize(local,W,H); if(can) canvases.push(can);
+  for(const [sx,ex] of targets){
+    // 局所bbox
+    let tminY=H, tmaxY=-1;
+    for(let y=0;y<H;y++){ for(let x=sx;x<=ex;x++){ if(closed[y*W+x]){ if(y<tminY)tminY=y; if(y>tmaxY)tmaxY=y; } } }
+    if(tmaxY<0){ tminY=minY; tmaxY=maxY; }
+    const can=centerAndResizeTo28({img:closed,W,H},{minX:sx,minY:tminY,maxX:ex,maxY:tmaxY});
+    if(can) canvases.push(can);
   }
   return canvases;
 }
 
-// ===== 推論（各桁 top2 を保持）＋ デバッグ文字列を返す
-async function recognize(){
+// ===== 認識（各桁top2）・プレビュー・候補生成 =====
+let lastCandidates = []; // 直近プレビューの上位組み合わせ
+
+async function recognizeTop2(){
   if(!model){ await loadModel().catch(()=>{}); if(!model) throw new Error('model not loaded'); }
   if(paths.length===0) throw new Error('empty');
   redrawAll();
   const digits=canvasToDigits(els.canvas);
   if(digits.length===0) throw new Error('no digits');
 
-  const textParts=[]; // 「8(0.62)/1(0.21) | 1(0.88)」のように表示
-  const numbers=[];
+  const perDigit=[];
+  const parts=[];
   for(const dc of digits){
     const pred=tf.tidy(()=> tf.browser.fromPixels(dc,1).mean(2).toFloat().div(255).reshape([1,28,28,1]).asType('float32'));
     const data=await model.predict(pred).data(); pred.dispose();
     const arr=Array.from(data).map((v,i)=>({i,v})).sort((a,b)=>b.v-a.v);
-    const top1=arr[0], top2=arr[1];
-    numbers.push(top1.i);
-    textParts.push(`${top1.i}(${top1.v.toFixed(2)})` + (top2?`/${top2.i}(${top2.v.toFixed(2)})`:''));
+    const t1=arr[0], t2=arr[1];
+    perDigit.push([t1, t2]);
+    parts.push(`${t1.i}(${t1.v.toFixed(2)})/${t2.i}(${t2.v.toFixed(2)})`);
   }
-  const num = parseInt(numbers.join(''),10);
-  return { num, dbg: textParts.join(' | ') };
+  // 組合せ（最大 3桁なら8通り程度）
+  const combos=[];
+  function dfs(pos, digits, conf){
+    if(pos===perDigit.length){ combos.push({num: parseInt(digits.join(''),10), conf}); return; }
+    for(const c of perDigit[pos]){
+      dfs(pos+1, digits.concat(c.i), conf*c.v);
+    }
+  }
+  dfs(0, [], 1);
+  combos.sort((a,b)=>b.conf-a.conf);
+  lastCandidates = combos.slice(0,9); // 候補最大9件
+  const previewBest = lastCandidates[0] ? `${lastCandidates[0].num}（信頼度 ${lastCandidates[0].conf.toFixed(2)}）` : '—';
+  els.recogText.textContent = `${previewBest} 〔 ${parts.join(' | ')} 〕`;
+  return lastCandidates;
 }
+
+// プレビュー
+els.previewBtn.addEventListener('click', async ()=>{
+  try{ await recognizeTop2(); }catch(e){ els.recogText.textContent = '（認識できませんでした）'; }
+});
+
+// 候補から選ぶ
+els.openCandidatesBtn.addEventListener('click', async ()=>{
+  if(!lastCandidates.length){
+    try{ await recognizeTop2(); }catch(e){ els.recogText.textContent = '（認識できませんでした）'; return; }
+  }
+  els.candButtons.innerHTML = '';
+  lastCandidates.forEach(c=>{
+    const btn = document.createElement('button');
+    btn.textContent = String(c.num);
+    btn.addEventListener('click', ()=>{
+      els.recogText.textContent = `${c.num} 〔候補選択〕`;
+      closeCand();
+    });
+    els.candButtons.appendChild(btn);
+  });
+  openCand();
+});
+function openCand(){
+  els.candModal.classList.remove('hidden'); els.candModal.setAttribute('aria-hidden','false');
+}
+function closeCand(){
+  els.candModal.classList.add('hidden'); els.candModal.setAttribute('aria-hidden','true');
+}
+els.candCancel.addEventListener('click', closeCand);
 
 // ===== 数字キーパッド =====
 let npResolve = null;
@@ -337,38 +381,39 @@ els.npCancel.addEventListener('click', closeNumpad);
 els.npBk.addEventListener('click', ()=>{ els.npDisplay.textContent = els.npDisplay.textContent.slice(0,-1); });
 els.openNumpadBtn.addEventListener('click', ()=> openNumpad(''));
 
-// ===== 回答処理（認識→表示→比較→判定） =====
+// ===== 採点（確実に比較） =====
 els.submitBtn.addEventListener('click', async ()=>{
   const [a,b] = quiz[idx];
   const ans = a*b;
   let userNumber = null;
-  let recogDbg = '';
+  let dbg = '';
 
-  try{
-    const {num, dbg} = await recognize();
-    userNumber = num;
-    recogDbg = dbg;
-    els.recogText.textContent = `${String(num)} 〔 ${dbg} 〕`;
-  }catch(e){
-    // 推論失敗 → 数字キーパッド
-    const fallback = await openNumpad('');
-    if(fallback===null) return;
-    const n = parseInt(fallback,10);
-    if(Number.isNaN(n)){ feedback('数字を入力してください'); return; }
-    userNumber = n;
-    recogDbg = 'manual';
-    els.recogText.textContent = `${String(n)} 〔 manual 〕`;
+  // 1) まずプレビュー済みのテキストに数字があればそれを採用
+  const fromText = (els.recogText.textContent || '').match(/\b\d+\b/);
+  if(fromText){ userNumber = parseInt(fromText[0],10); dbg = els.recogText.textContent; }
+
+  // 2) まだ決まっていない場合は認識を実行
+  if(userNumber === null || Number.isNaN(userNumber)){
+    try{
+      const combos = await recognizeTop2();
+      userNumber = combos[0]?.num;
+      dbg = els.recogText.textContent;
+    }catch(e){
+      // 3) それでもダメならキーパッド
+      const fallback = await openNumpad('');
+      if(fallback===null) return;
+      const n = parseInt(fallback,10);
+      if(Number.isNaN(n)){ feedback('数字を入力してください'); return; }
+      userNumber = n; dbg = 'manual';
+      els.recogText.textContent = `${n} 〔manual〕`;
+    }
   }
 
-  // ★ 判定は「数値」で厳密に比較 ★
   const ok = (Number(userNumber) === Number(ans));
-  if(ok){
-    score += 5; // 20問×5点 = 100点
-    try{ confetti && confetti({ particleCount: 80, spread: 60, origin:{ y: .7 } }); }catch{}
-  }
+  if(ok){ score += 5; try{ confetti && confetti({ particleCount: 80, spread: 60, origin:{ y: .7 } }); }catch{} }
   feedback('', ok);
 
-  history.push({ l:a, r:b, ans, user:userNumber, ok, recogDbg });
+  history.push({ l:a, r:b, ans, user:userNumber, ok, recogDbg: dbg });
 
   setTimeout(()=>{
     if(idx<19){ idx++; updateUI(); }
@@ -379,7 +424,15 @@ els.submitBtn.addEventListener('click', async ()=>{
 els.againBtn.addEventListener('click', ()=>{ els.resultCard.classList.add('hidden'); els.quizCard.classList.remove('hidden'); makeQuiz(); });
 els.restartBtn.addEventListener('click', ()=>{ els.resultCard.classList.add('hidden'); els.quizCard.classList.remove('hidden'); makeQuiz(); });
 
-// ===== 九九表（1画面／式表示） =====
+// ===== 表（ポップアップ／1画面グリッド） =====
+els.showTableBtn.addEventListener('click', ()=>{ buildKukuGrid(); openModal(true); });
+els.closeModal.addEventListener('click', ()=> openModal(false));
+els.tableModal.querySelector('.modal-backdrop').addEventListener('click', ()=> openModal(false));
+
+function openModal(show){
+  els.tableModal.classList.toggle('hidden', !show);
+  els.tableModal.setAttribute('aria-hidden', show ? 'false':'true');
+}
 function buildKukuGrid(){
   const wrap = document.createElement('div');
   wrap.className = 'kuku-grid';
@@ -389,7 +442,6 @@ function buildKukuGrid(){
   const thead = document.createElement('thead');
   const trh = document.createElement('tr');
 
-  // 左上はヘッダ「×」
   const corner = document.createElement('th');
   corner.textContent = '×';
   corner.className = 'hd';
@@ -413,7 +465,7 @@ function buildKukuGrid(){
     for(let j=1;j<=9;j++){
       const td = document.createElement('td');
       td.className = 'expr';
-      td.textContent = `${i}×${j}=${i*j}`; // 式表示
+      td.textContent = `${i}×${j}=${i*j}`;
       tr.appendChild(td);
     }
     tbody.appendChild(tr);
@@ -426,7 +478,6 @@ function buildKukuGrid(){
 }
 
 // 初期化
-buildKukuGrid();
 makeQuiz();
 
 // iOS ダブルタップ拡大の誤発火対策

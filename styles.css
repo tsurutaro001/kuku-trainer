@@ -69,27 +69,17 @@ body{
 .small{font-size:12px}
 .muted{color:var(--muted)}
 
-/* モーダル（数字キーパッド） */
+/* モーダル */
 .modal{position:fixed; inset:0; display:grid; place-items:center}
 .modal.hidden{display:none}
 .modal-backdrop{position:absolute; inset:0; background:#0009}
 .modal-content{
-  position:relative; z-index:1; width:min(520px,92vw);
+  position:relative; z-index:1; width:min(900px,92vw);
   background:#131829; border:1px solid #2a3149; border-radius:14px; padding:16px;
   max-height:85vh; overflow:auto;
 }
-.np-display{
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  background:#0d1019; border:1px solid #232a43; border-radius:8px;
-  padding:10px; margin-bottom:10px; min-height:40px; font-size:28px; text-align:right;
-}
-.np-grid{
-  display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px;
-}
-.np{padding:12px 0; border-radius:10px; background:#1a1f30; color:var(--text); border:1px solid #2a3149; font-size:20px}
-.np.wide{grid-column: span 2}
 
-/* 九九表（1画面／式表示） */
+/* 九九表（1画面／式表示グリッド） */
 .kuku-grid{
   overflow-x:auto;
   border:1px solid #2b3149; border-radius:12px; padding:8px;
@@ -106,6 +96,21 @@ body{
 }
 .kuku-table th.hd{color:var(--muted); background:#151a2b}
 .kuku-table td.expr{letter-spacing:.02em}
+
+/* 数字キーパッド & 候補ボタン */
+.np-display{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background:#0d1019; border:1px solid #232a43; border-radius:8px;
+  padding:10px; margin-bottom:10px; min-height:40px; font-size:28px; text-align:right;
+}
+.np-grid{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px;
+}
+.np{padding:12px 0; border-radius:10px; background:#1a1f30; color:var(--text); border:1px solid #2a3149; font-size:20px}
+.np.wide{grid-column: span 2}
+
+.cand-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:10px 0}
+.cand-grid button{padding:12px 0; border-radius:10px; background:#1a1f30; color:var(--text); border:1px solid #2a3149; font-size:18px}
 
 /* モバイル微調整 */
 @media (hover:none){
