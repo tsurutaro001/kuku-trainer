@@ -1,97 +1,112 @@
-/* =====================================================
-   ▼▼ ここから：改行防止＋余白最適化パッチ v10.4 ▼▼
-   ===================================================== */
+/* ============================================================
+   style.css v11
+   - 8×9=□ を 1 行表示
+   - 縦長対策でコンパクト化
+   - 恐竜・BGM・九九表・結果画面対応
+   ============================================================ */
 
-/* 画面全体の余白調整 */
+/* ------------------------------
+   基本レイアウト
+------------------------------ */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Nunito", "Segoe UI", sans-serif;
+  background: #e6f5ff;
+  text-align: center;
+  overflow-x: hidden;
+  position: relative;
+}
+
+.hidden {
+  display: none !important;
+}
+
 #app {
-  padding: 4px !important;
+  padding: 6px;
 }
 
-/* タイトルの余白を縮小 */
-.title {
-  font-size: 22px;
-  margin: 4px 0 6px !important;
-}
-
-/* 難易度ボタン付近の余白最適化 */
-.mode-select {
-  margin-bottom: 4px !important;
-}
-
-#bgmToggle {
-  margin-top: 2px !important;
-  margin-bottom: 4px !important;
-}
-
-/* カード本体の余白を減らす */
+/* ------------------------------
+   カード（問題 / 結果）
+------------------------------ */
 .card {
-  padding: 12px !important;
-  margin-top: 4px !important;
-  max-height: calc(100vh - 110px) !important; /* コンパクト化 */
+  background: #ffffff;
+  max-width: 420px;
+  margin: 6px auto 0;
+  padding: 12px;
+  border-radius: 18px;
+  box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.12);
+  /* 画面からはみ出さないように高さ制限 */
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
 }
 
-/* 【重要】問題行を横一列に強制（改行防止） */
-.problem {
-  display: inline-flex !important;
-  align-items: center;
-  gap: 8px;
-  font-size: 36px !important;
-  margin: 4px 0 !important;
+/* ------------------------------
+   タイトル
+------------------------------ */
+.title {
+  font-size: 24px;
+  font-weight: 800;
+  margin: 4px 0 8px;
 }
 
-#answerBox {
-  display: inline-flex !important;
+/* ------------------------------
+   難易度ボタン
+------------------------------ */
+.mode-select {
+  display: flex;
   justify-content: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.mode-btn {
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: 999px;
+  background: #d0eaff;
+  border: none;
+  font-weight: 700;
+}
+
+.mode-btn.active {
+  background: #3398ff;
+  color: #ffffff;
+}
+
+/* ------------------------------
+   BGM ボタン
+------------------------------ */
+#bgmToggle {
+  margin-top: 2px;
+  margin-bottom: 4px;
+  padding: 6px 12px;
+  background: #ffd18c;
+  border-radius: 999px;
+  font-weight: 700;
+  border: none;
+  font-size: 13px;
+}
+
+/* ------------------------------
+   タイマー表示
+------------------------------ */
+#timeDisplay {
+  font-size: 22px;
+  font-weight: 700;
+  color: #ff4444;
+  margin-top: 4px;
+}
+
+/* ------------------------------
+   問題表示
+   8×9=□ を 1 行で表示
+------------------------------ */
+.problem {
+  display: inline-flex;
   align-items: center;
-  min-width: 55px !important;
-  min-height: 45px !important;
-  font-size: 30px !important;
-  margin-left: 4px;
-}
-
-/* キーパッドの余白縮小 */
-.keypad {
-  margin-top: 6px !important;
-  gap: 4px !important;
-  max-width: 200px !important;
-}
-
-.key {
-  padding: 10px 0 !important;
-  font-size: 17px !important;
-}
-
-/* こたえあわせ の余白縮小 */
-#submitBtn {
-  margin-top: 8px !important;
-  padding: 10px !important;
-  font-size: 18px !important;
-}
-
-/* 恐竜カードの余白縮小 */
-.dino-area {
-  margin-top: 8px !important;
-  padding: 8px !important;
-}
-
-#dinoEmoji {
-  font-size: 36px !important;
-  margin-bottom: 2px !important;
-}
-
-.star-bar {
-  height: 10px !important;
-  margin-top: 4px !important;
-}
-
-/* 結果画面の余白も最適化 */
-#resultCard {
-  padding: 14px !important;
-}
-
-#finalScore {
-  font-size: 36px !important;
-  margin: 6px 0 !important;
-}
-
-/* ----------------------------------------------------- */
+  justify-content: center;
+  gap: 8px;
+  font-size: 36px;
+  font-weight: 800;
+  margin: 4px 
