@@ -4,14 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>かけざん れんしゅう</title>
-  <link rel="stylesheet" href="./styles.css?v=6.3" />
+  <link rel="stylesheet" href="./styles.css?v=8.2" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.9.3/confetti.min.js" defer></script>
-  <script src="./app.js?v=6.3" type="module" defer></script>
+  <script src="./app.js?v=8.2" type="module" defer></script>
 </head>
 <body>
   <header class="app-header">
     <div class="hdr-left">
-      <span class="brand">🦖 かけざん れんしゅう 🐞</span>
+      <span class="brand">🦕 かけざん れんしゅう 🐞</span>
     </div>
     <div class="hdr-right">
       <button id="showTableBtn" class="btn ghost">表を見る</button>
@@ -20,9 +20,36 @@
   </header>
 
   <main class="container">
+    <!-- もんだい数選択 -->
+    <section class="mode-bar">
+      <span class="mode-label">もんだい数：</span>
+      <div class="mode-buttons">
+        <button class="mode-btn" data-q-count="10">10問</button>
+        <button class="mode-btn active" data-q-count="20">20問</button>
+        <button class="mode-btn" data-q-count="30">30問</button>
+      </div>
+    </section>
+
     <section id="statusBar" class="status-bar">
-      <div>問 <span id="qNo">1</span> / 20</div>
+      <div>問 <span id="qNo">1</span> / <span id="qTotal">20</span></div>
       <div>スコア <span id="score">0</span> / 100</div>
+    </section>
+
+    <!-- 恐竜＆スターゲージ -->
+    <section class="buddy-bar">
+      <div class="buddy">
+        <div id="dinoEmoji" class="dino">🦕</div>
+        <div class="dino-text">
+          <div id="dinoName">きょうりゅうレベル 1</div>
+          <div id="dinoMsg" class="dino-msg">スタート！ がんばろう！</div>
+        </div>
+      </div>
+      <div class="star-bar">
+        <div class="star-label">⭐ スター</div>
+        <div class="star-track">
+          <div id="starFill" class="star-fill"></div>
+        </div>
+      </div>
     </section>
 
     <section id="quizCard" class="card">
@@ -70,8 +97,7 @@
   <div id="tableModal" class="modal hidden" aria-hidden="true">
     <div class="modal-backdrop"></div>
     <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-      <h3 id="modalTitle">🪴 かけ算九九（1〜9）</h3>
-      <!-- 説明行は削除しました -->
+      <h3 id="modalTitle">かけ算九九（1〜9）</h3>
       <div id="kukuGrid" class="kuku-grid"></div>
       <button id="closeModal" class="btn primary block">とじる</button>
     </div>
