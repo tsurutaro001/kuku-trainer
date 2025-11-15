@@ -489,16 +489,17 @@ modeBtns.forEach(btn=>{
   };
 });
 
-/* BGMトグル */
-els.bgmToggle.onclick=()=>{
+// もともとの BGMトグル処理をこの形に差し替え
+els.bgmToggle.onclick = () => {
   initAudio();
-  if(!AC||!bgmGain) return;
-  if(!bgmOn){
+  if (!AC || !bgmGain) return;
+
+  if (!bgmOn) {
     startBGM();
-    els.bgmToggle.textContent="♪ BGM きる";
-  }else{
+    els.bgmToggle.textContent = "🔊";   // ON
+  } else {
     stopBGM();
-    els.bgmToggle.textContent="♪ BGM おん";
+    els.bgmToggle.textContent = "🔇";   // OFF
   }
 };
 
