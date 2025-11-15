@@ -1,112 +1,123 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>かけざん れんしゅう</title>
-  <link rel="stylesheet" href="./styles.css?v=8.6" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.9.3/confetti.min.js" defer></script>
-  <script src="./app.js?v=8.6" defer></script>
+  <link rel="stylesheet" href="style.css">
+
+  <!-- 花火ライブラリ（canvas-confetti） -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 
-<body>
-  <header class="app-header">
-    <div class="hdr-left">
-      <span class="brand">🦕 かけざん れんしゅう 🐞</span>
+<body class="skin-normal bg-easy">
+  <div id="app">
+
+    <!-- タイトル -->
+    <div class="title">かけざん れんしゅう</div>
+
+    <!-- 難易度選択 -->
+    <div class="mode-select">
+      <button class="mode-btn active" data-qcount="10">やさしい</button>
+      <button class="mode-btn" data-qcount="20">ふつう</button>
+      <button class="mode-btn" data-qcount="30">ちょうせん</button>
     </div>
-    <div class="hdr-right">
-      <button id="showTableBtn" class="btn ghost">表を見る</button>
-      <button id="restartBtn" class="btn ghost">最初から</button>
-    </div>
-  </header>
 
-  <main class="container">
-    <!-- もんだい数選択 -->
-    <section class="mode-bar">
-      <span class="mode-label">もんだい数：</span>
-      <div class="mode-buttons">
-        <!-- 表示：やさしい / ふつう / ちょうせん -->
-        <button class="mode-btn" data-qcount="10">やさしい</button>
-        <button class="mode-btn active" data-qcount="20">ふつう</button>
-        <button class="mode-btn" data-qcount="30">ちょうせん</button>
-      </div>
-    </section>
+    <!-- BGM トグル -->
+    <button id="bgmToggle">♪ BGM おん</button>
 
-    <!-- BGMトグル -->
-    <section class="bgm-bar">
-      <button id="bgmToggle" class="btn ghost small">♪ BGM おん</button>
-    </section>
+    <!-- タイマー（ちょうせんモード） -->
+    <div id="timeDisplay" class="hidden"></div>
 
-    <section id="statusBar" class="status-bar">
-      <div>問 <span id="qNo">1</span> / <span id="qTotal">20</span></div>
-      <div>スコア <span id="score">0</span> / 100</div>
-    </section>
+    <!-- ====================
+         クイズカード
+    ===================== -->
+    <div id="quizCard" class="card">
 
-    <!-- 恐竜バー -->
-    <section class="buddy-bar">
-      <div class="buddy">
-        <div id="dinoEmoji" class="dino">🦕</div>
-        <div class="dino-text">
-          <div id="dinoName">きょうりゅうレベル 1</div>
-          <div id="dinoMsg" class="dino-msg">スタート！ がんばろう！</div>
-        </div>
-      </div>
-      <div class="star-bar">
-        <div class="star-label">⭐ スター</div>
-        <div class="star-track">
-          <div id="starFill" class="star-fill"></div>
-        </div>
-      </div>
-    </section>
-
-    <section id="quizCard" class="card">
-      <div class="question-wrap">
-        <div class="q-label">🟢 もんだい</div>
-        <div class="question">
-          <span id="left">？</span>
-          <span class="op">×</span>
-          <span id="right">？</span>
-          <span class="eq">＝</span>
-          <span id="answerBox" class="ansbox">□</span>
-        </div>
+      <!-- 問題番号とスコア -->
+      <div style="font-size: 16px; margin-bottom: 8px;">
+        <span id="qNo">1</span> / <span id="qTotal">10</span>
+        &nbsp;|&nbsp; スコア：<span id="score">0</span>
       </div>
 
-      <div class="pad">
-        <div class="pad-grid">
-          <button class="key">7</button> <button class="key">8</button> <button class="key">9</button>
-          <button class="key">4</button> <button class="key">5</button> <button class="key">6</button>
-          <button class="key">1</button> <button class="key">2</button> <button class="key">3</button>
-          <button class="key wide">0</button>
-          <button id="keyBk" class="key">⌫</button>
-          <button id="keyClr" class="key danger">クリア</button>
-        </div>
+      <!-- 問題 -->
+      <div class="problem">
+        <span id="left">2</span> × <span id="right">3</span> ＝
       </div>
 
-      <div class="actions">
-        <button id="submitBtn" class="btn primary">送信（採点）</button>
-      </div>
+      <!-- 回答欄 -->
+      <div id="answerBox">□</div>
 
+      <!-- エフェクト（せいかい！など） -->
       <div id="fx" class="fx"></div>
-    </section>
 
-    <section id="resultCard" class="card hidden">
-      <h2>🎉 けっか</h2>
-      <p class="big">スコア：<span id="finalScore">0</span> / 100</p>
-      <div id="summaryList"></div>
-      <div class="actions">
-        <button id="againBtn" class="btn primary">もういちど！</button>
+      <!-- コンボバッジ -->
+      <div id="comboBadge"></div>
+
+      <!-- キーパッド -->
+      <div class="keypad">
+        <div class="key">1</div>
+        <div class="key">2</div>
+        <div class="key">3</div>
+        <div class="key">4</div>
+        <div class="key">5</div>
+        <div class="key">6</div>
+        <div class="key">7</div>
+        <div class="key">8</div>
+        <div class="key">9</div>
+        <div id="keyClr" class="key">C</div>
+        <div class="key">0</div>
+        <div id="keyBk" class="key">←</div>
       </div>
-    </section>
-  </main>
 
-  <!-- 九九表 -->
-  <div id="tableModal" class="modal hidden" aria-hidden="true">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content">
-      <h3>かけ算九九（1〜9）</h3>
-      <div id="kukuGrid" class="kuku-grid"></div>
-      <button id="closeModal" class="btn primary block">とじる</button>
+      <button id="submitBtn">こたえあわせ</button>
+
+      <!-- 恐竜エリア -->
+      <div class="dino-area">
+        <div id="dinoEmoji">🦕</div>
+        <div id="dinoName">きょうりゅうレベル 1</div>
+        <div id="dinoMsg">がんばろう！</div>
+
+        <!-- スターバー -->
+        <div class="star-bar">
+          <div id="starFill"></div>
+        </div>
+      </div>
+
+      <!-- 九九表 ボタン -->
+      <button id="showTableBtn" style="margin-top: 14px;">九九の表を見る</button>
+
+    </div> <!-- /quizCard -->
+
+    <!-- ====================
+         結果カード
+    ===================== -->
+    <div id="resultCard" class="card hidden">
+      <h2 style="margin-top:0;">けっか</h2>
+      <div id="finalScore" style="font-size: 40px; font-weight: bold;">0てん</div>
+      <div id="summaryList" style="text-align:left; margin-top: 16px;"></div>
+
+      <button id="againBtn" style="margin-top:16px;">もういちど</button><br>
+      <button id="restartBtn" style="margin-top:10px;">さいしょから</button>
     </div>
-  </div>
+
+    <!-- ====================
+         九九表のモーダル
+    ===================== -->
+    <div id="tableModal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <button id="closeModal" style="
+          position:absolute; top:10px; right:10px;
+          background:#ff8d8d; border-radius:10px; padding:6px 10px; font-weight:bold;
+        ">とじる</button>
+        <h3>九九の表</h3>
+        <div id="kukuGrid"></div>
+      </div>
+    </div>
+
+  </div> <!-- /app -->
+
+  <script src="app.js"></script>
 </body>
 </html>
