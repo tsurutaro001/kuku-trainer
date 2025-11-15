@@ -1,18 +1,24 @@
-// app.js v8.3（安定版）
-// ・10/20/30問切替 修正
-// ・効果音が動作するよう AudioContext をユーザー操作内で生成
-// ・スターゲージ 正しく上昇
-// ・レベルアップ正しく発火
-// ・コンボ音、正解音、不正解音すべて正常動作
+// app.js v8.5
+// ・かんたん/ふつう/ちゃれんじ（10/20/30問）
+// ・スコア = 正解率×100
+// ・恐竜レベル＆スター
+// ・正解/不正解/コンボ/レベルアップ/結果発表SE
+// ・8bit BGM（ON/OFFトグル）
 
-let AC = null; // AudioContext は1回だけ作る（スマホ対策）
+let AC = null;          // AudioContext
+let bgmOn = false;      // BGM状態
+let bgmTimer = null;    // BGMループ用タイマー
+let bgmBarSec = 0;      // 1小節分の秒数
 
 function initAudio(){
   if(!AC){
-    AC = new (window.AudioContext || window.webkitAudioContext)();
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if(!Ctx) return;
+    AC = new Ctx();
   }
 }
 
+/* ========= 効果音 ========= */
 function playSE(type){
   if(!AC) return;
   const osc = AC.createOscillator();
@@ -25,39 +31,26 @@ function playSE(type){
     osc.stop(AC.currentTime + t);
   }
 
-  // =============================
-  // 正解音：キラッ✨
-  // =============================
   if(type === "OK"){
     osc.type = "sine";
     osc.frequency.setValueAtTime(900, AC.currentTime);
     osc.frequency.exponentialRampToValueAtTime(1500, AC.currentTime + 0.28);
-
     gain.gain.setValueAtTime(0.3, AC.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + 0.28);
-
     end(0.28);
     return;
   }
 
-  // =============================
-  // 不正解音：ブブー
-  // =============================
   if(type === "NG"){
     osc.type = "square";
     osc.frequency.setValueAtTime(220, AC.currentTime);
     osc.frequency.exponentialRampToValueAtTime(110, AC.currentTime + 0.32);
-
     gain.gain.setValueAtTime(0.3, AC.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + 0.32);
-
     end(0.32);
     return;
   }
 
-  // =============================
-  // コンボ音
-  // =============================
   if(type === "COMBO2"){
     osc.type = "triangle";
     osc.frequency.setValueAtTime(700, AC.currentTime);
@@ -85,9 +78,6 @@ function playSE(type){
     return;
   }
 
-  // =============================
-  // レベルアップ音
-  // =============================
   if(type === "LEVELUP"){
     osc.type = "square";
     osc.frequency.setValueAtTime(600, AC.currentTime);
@@ -96,9 +86,80 @@ function playSE(type){
     end(0.25);
     return;
   }
+
+  if(type === "RESULT"){
+    osc.type = "square";
+    osc.frequency.setValueAtTime(800, AC.currentTime);
+    osc.frequency.linearRampToValueAtTime(1200, AC.currentTime + 0.12);
+    osc.frequency.linearRampToValueAtTime(1000, AC.currentTime + 0.24);
+    gain.gain.value = 0.25;
+    end(0.28);
+    return;
+  }
 }
 
-// ===== DOM =====
+/* ========= 8bit BGM ========= */
+/** シンプルな8bit風メロディ 1小節分 */
+const BGM_NOTES = [
+  // Cメジャーっぽい4分音符×4 + 休符
+  { freq: 523.25, len: 0.25 }, // C5
+  { freq: 659.25, len: 0.25 }, // E5
+  { freq: 783.99, len: 0.25 }, // G5
+  { freq: 659.25, len: 0.25 }, // E5
+  { freq: 0,       len: 0.25 }, // 休符
+  { freq: 659.25, len: 0.25 }, // E5
+  { freq: 783.99, len: 0.25 }, // G5
+  { freq: 987.77, len: 0.25 }, // B5
+];
+
+function scheduleBgmBar(){
+  if(!AC || !bgmOn) return;
+
+  const now = AC.currentTime;
+  let t = now;
+  const vol = 0.08; // 小さめ（SEより控えめ）
+
+  BGM_NOTES.forEach(note=>{
+    const len = note.len;
+    if(note.freq > 0){
+      const osc = AC.createOscillator();
+      const gain = AC.createGain();
+      osc.connect(gain);
+      gain.connect(AC.destination);
+      osc.type = "square";
+      osc.frequency.setValueAtTime(note.freq, t);
+      gain.gain.setValueAtTime(vol, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + len*0.9);
+      osc.start(t);
+      osc.stop(t + len);
+    }
+    t += len;
+  });
+}
+
+function startBGM(){
+  if(!AC) return;
+  if(bgmOn) return;
+  bgmOn = true;
+
+  // 1小節の長さ
+  bgmBarSec = BGM_NOTES.reduce((sum,n)=>sum+n.len,0);
+
+  scheduleBgmBar();
+  bgmTimer = setInterval(()=>{
+    scheduleBgmBar();
+  }, bgmBarSec*1000);
+}
+
+function stopBGM(){
+  bgmOn = false;
+  if(bgmTimer){
+    clearInterval(bgmTimer);
+    bgmTimer = null;
+  }
+}
+
+/* ========= DOM ========= */
 const els = {
   qNo: document.getElementById('qNo'),
   qTotal: document.getElementById('qTotal'),
@@ -124,6 +185,7 @@ const els = {
   tableModal: document.getElementById('tableModal'),
   closeModal: document.getElementById('closeModal'),
   kukuGrid: document.getElementById('kukuGrid'),
+  bgmToggle: document.getElementById('bgmToggle'),
 };
 
 const modeBtns = document.querySelectorAll(".mode-btn");
@@ -131,14 +193,14 @@ const modeBtns = document.querySelectorAll(".mode-btn");
 let quiz = [];
 let idx = 0;
 let correctCount = 0;
-let totalQuestions = 20;
+let totalQuestions = 20;  // デフォルト「ふつう」
 let score = 0;
 let combo = 0;
 let lastLevel = 1;
 let currentInput = "";
 let history = [];
 
-// ===== 問題生成 =====
+/* ========= 問題生成 ========= */
 function makeQuiz(){
   const all = [];
   for(let a=1;a<=9;a++){
@@ -146,8 +208,6 @@ function makeQuiz(){
       all.push([a,b]);
     }
   }
-
-  // シャッフル
   for(let i=all.length-1;i>0;i--){
     const j = Math.floor(Math.random()*(i+1));
     [all[i], all[j]] = [all[j], all[i]];
@@ -156,18 +216,17 @@ function makeQuiz(){
   quiz = all.slice(0,totalQuestions);
   idx = 0;
   correctCount = 0;
+  score = 0;
   combo = 0;
   lastLevel = 1;
-  score = 0;
-  history = [];
   currentInput = "";
+  history = [];
 
   els.qTotal.textContent = totalQuestions;
   updateUI();
   updateBuddy();
 }
 
-// ===== UI更新 =====
 function updateUI(){
   els.qNo.textContent = idx+1;
   els.left.textContent = quiz[idx][0];
@@ -178,11 +237,11 @@ function updateUI(){
   feedback("");
 }
 
-// ===== 入力関係 =====
 function renderAnswer(){
   els.answerBox.textContent = currentInput || "□";
 }
 
+/* ========= キーパッド ========= */
 document.querySelectorAll(".key").forEach(btn=>{
   const t = btn.textContent.trim();
   if(/^\d$/.test(t)){
@@ -201,17 +260,15 @@ els.keyBk.onclick = ()=>{
   currentInput = currentInput.slice(0,-1);
   renderAnswer();
 };
-
 els.keyClr.onclick = ()=>{
   initAudio();
   currentInput = "";
   renderAnswer();
 };
 
-// ===== 採点 =====
+/* ========= 採点 ========= */
 els.submitBtn.onclick = ()=>{
   initAudio();
-
   if(!currentInput){
     feedback("数字を入力してね", null);
     return;
@@ -219,7 +276,7 @@ els.submitBtn.onclick = ()=>{
 
   const [a,b] = quiz[idx];
   const ans = a*b;
-  const user = parseInt(currentInput);
+  const user = parseInt(currentInput,10);
   const ok = (user === ans);
 
   if(ok){
@@ -227,18 +284,15 @@ els.submitBtn.onclick = ()=>{
     combo++;
     playSE("OK");
     spawnStar();
-
     if(combo === 2) playSE("COMBO2");
     if(combo === 3) playSE("COMBO3");
     if(combo >= 4) playSE("COMBO4");
-
-  } else {
+  }else{
     combo = 0;
     playSE("NG");
   }
 
-  // スコア（正解率×100）
-  score = Math.round((correctCount / totalQuestions) * 100);
+  score = Math.round((correctCount/totalQuestions)*100);
   els.score.textContent = score;
 
   history.push({a,b,ans,user,ok});
@@ -246,7 +300,7 @@ els.submitBtn.onclick = ()=>{
   updateBuddy();
 
   setTimeout(()=>{
-    if(idx < totalQuestions - 1){
+    if(idx < totalQuestions-1){
       idx++;
       updateUI();
     }else{
@@ -255,7 +309,6 @@ els.submitBtn.onclick = ()=>{
   }, ok ? 1000 : 1200);
 };
 
-// ===== フィードバック =====
 function feedback(msg, ok){
   els.fx.className = "fx";
   if(ok === true){
@@ -265,18 +318,15 @@ function feedback(msg, ok){
     els.fx.classList.add("ng");
     els.fx.textContent = "🪲 ざんねん！";
   }else{
-    els.fx.textContent = msg;
+    els.fx.textContent = msg || "";
   }
 }
 
-// ===== 恐竜バディ =====
+/* ========= 恐竜・スター ========= */
 function updateBuddy(){
-  const ratio = correctCount / totalQuestions;
+  const ratio = totalQuestions ? (correctCount/totalQuestions) : 0;
+  els.starFill.style.width = (ratio*100) + "%";
 
-  // スター
-  els.starFill.style.width = (ratio*100)+"%";
-
-  // レベル判定
   let level = 1;
   if(ratio >= 0.7) level = 3;
   else if(ratio >= 0.35) level = 2;
@@ -286,14 +336,7 @@ function updateBuddy(){
   }
   lastLevel = level;
 
-  // 表示
-  if(level===1){
-    els.dinoEmoji.textContent = "🦕";
-  }else if(level===2){
-    els.dinoEmoji.textContent = "🦖";
-  }else{
-    els.dinoEmoji.textContent = "🦖🔥";
-  }
+  els.dinoEmoji.textContent = level===1 ? "🦕" : (level===2 ? "🦖" : "🦖🔥");
   els.dinoName.textContent = `きょうりゅうレベル ${level}`;
 
   if(ratio === 1){
@@ -307,7 +350,7 @@ function updateBuddy(){
   }
 }
 
-// ===== 星アニメ =====
+/* ========= スターアニメ ========= */
 function spawnStar(){
   const star = document.createElement("div");
   star.textContent = "⭐";
@@ -316,15 +359,17 @@ function spawnStar(){
   setTimeout(()=>star.remove(),1000);
 }
 
-// ===== 結果 =====
+/* ========= 結果 ========= */
 function showResult(){
   els.quizCard.classList.add("hidden");
   els.resultCard.classList.remove("hidden");
   els.finalScore.textContent = score;
 
   els.summaryList.innerHTML = history.map((h,i)=>
-    `Q${i+1}：${h.a}×${h.b}＝${h.ans} / あなた：<strong class="${h.ok?'ok':'ng'}">${h.user}</strong>`
+    `Q${i+1}：${h.a}×${h.b}＝${h.ans} ／ あなた：<strong class="${h.ok?'ok':'ng'}">${h.user}</strong>`
   ).join("<br>");
+
+  playSE("RESULT");
 }
 
 els.againBtn.onclick = ()=>{
@@ -338,12 +383,11 @@ els.restartBtn.onclick = ()=>{
   makeQuiz();
 };
 
-// ===== 九九表 =====
+/* ========= 九九表 ========= */
 els.showTableBtn.onclick = ()=>{
   buildKukuGrid();
   els.tableModal.classList.remove("hidden");
 };
-
 els.closeModal.onclick = ()=>{
   els.tableModal.classList.add("hidden");
 };
@@ -355,29 +399,43 @@ function buildKukuGrid(){
   let html = `<table class="kuku-table"><thead><tr><th class="hd">×</th>`;
   for(let j=1;j<=9;j++) html += `<th class="hd">${j}</th>`;
   html += `</tr></thead><tbody>`;
-
   for(let i=1;i<=9;i++){
     html += `<tr><th class="hd">${i}</th>`;
     for(let j=1;j<=9;j++){
       html += `<td class="expr">${j}×${i}=${i*j}</td>`;
     }
-    html += "</tr>";
+    html += `</tr>`;
   }
-  html += "</tbody></table>";
-
+  html += `</tbody></table>`;
   els.kukuGrid.innerHTML = html;
 }
 
-// ===== モード切替 =====
+/* ========= モード切り替え ========= */
 modeBtns.forEach(btn=>{
   btn.onclick = ()=>{
+    initAudio();
     modeBtns.forEach(b=>b.classList.remove("active"));
     btn.classList.add("active");
 
-    totalQuestions = Number(btn.dataset.qcount);
+    const n = Number(btn.dataset.qcount);
+    if(!n) return;
+    totalQuestions = n;
     makeQuiz();
   };
 });
 
-// ===== 初期化 =====
+/* ========= BGMトグル ========= */
+els.bgmToggle.onclick = ()=>{
+  initAudio();
+  if(!AC) return;
+  if(!bgmOn){
+    startBGM();
+    els.bgmToggle.textContent = "♪ BGM きる";
+  }else{
+    stopBGM();
+    els.bgmToggle.textContent = "♪ BGM おん";
+  }
+};
+
+/* ========= 初期化 ========= */
 makeQuiz();
