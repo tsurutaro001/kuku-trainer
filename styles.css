@@ -1,5 +1,5 @@
 /* ============================================================
-   style.css v10（フル強化版）
+   style.css v10.2（縦長対策版）
    ============================================================ */
 
 /* ------------------------------
@@ -20,28 +20,32 @@ body {
 }
 
 #app {
-  padding: 10px;
+  padding: 6px;
 }
 
 /* ------------------------------
    カード
+   - 高さを画面内に収まるよう制限
+   - 溢れた部分はカード内スクロール
 ------------------------------ */
 .card {
   background: #fff;
   max-width: 420px;
-  margin: 0 auto;
-  padding: 18px;
+  margin: 6px auto 0;
+  padding: 14px;
   border-radius: 14px;
   box-shadow: 0px 4px 16px rgba(0,0,0,0.18);
+  max-height: calc(100vh - 140px); /* タイトルやボタン分を除いた高さ */
+  overflow-y: auto;
 }
 
 /* ------------------------------
    タイトル
 ------------------------------ */
 .title {
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 700;
-  margin: 10px 0 18px;
+  margin: 6px 0 10px;
 }
 
 /* ------------------------------
@@ -51,12 +55,12 @@ body {
   display: flex;
   justify-content: center;
   gap: 6px;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .mode-btn {
-  padding: 8px 12px;
-  font-size: 14px;
+  padding: 6px 10px;
+  font-size: 13px;
   border-radius: 12px;
   background: #d0eaff;
   border: none;
@@ -72,34 +76,35 @@ body {
    BGM ボタン
 ------------------------------ */
 #bgmToggle {
-  margin-top: 8px;
-  padding: 8px 14px;
+  margin-top: 4px;
+  padding: 6px 12px;
   background: #ffd18c;
   border-radius: 10px;
   font-weight: bold;
   border: none;
+  font-size: 13px;
 }
 
 /* ------------------------------
    問題
 ------------------------------ */
 .problem {
-  font-size: 46px;
+  font-size: 40px;
   font-weight: bold;
-  margin: 14px 0;
+  margin: 8px 0;
 }
 
 /* ------------------------------
    回答欄
 ------------------------------ */
 #answerBox {
-  font-size: 40px;
+  font-size: 34px;
   font-weight: bold;
   border: 3px solid #55b1ff;
-  padding: 6px 14px;
+  padding: 4px 10px;
   border-radius: 12px;
   background: #f0faff;
-  min-width: 80px;
+  min-width: 70px;
   display: inline-block;
 }
 
@@ -107,20 +112,20 @@ body {
    キーパッド
 ------------------------------ */
 .keypad {
-  margin-top: 12px;
+  margin-top: 8px;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  max-width: 240px;
+  max-width: 220px;
   margin-left: auto;
   margin-right: auto;
-  gap: 8px;
+  gap: 6px;
 }
 
 .key {
   background: #ffe9b3;
   border-radius: 12px;
-  padding: 14px 0;
-  font-size: 20px;
+  padding: 10px 0;
+  font-size: 18px;
   font-weight: bold;
   border: none;
 }
@@ -136,12 +141,12 @@ body {
 /* 送信ボタン */
 #submitBtn {
   width: 80%;
-  margin-top: 14px;
-  padding: 12px;
+  margin-top: 10px;
+  padding: 10px;
   background: #4aa3ff;
   color: white;
   border-radius: 12px;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   border: none;
 }
@@ -150,10 +155,10 @@ body {
    エフェクト（正解/不正解）
 ------------------------------ */
 .fx {
-  height: 40px;
-  font-size: 26px;
+  height: 32px;
+  font-size: 22px;
   font-weight: bold;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .fx.ok {
@@ -175,17 +180,17 @@ body {
    恐竜エリア
 ------------------------------ */
 .dino-area {
-  margin: 12px 0 0;
-  padding: 10px;
+  margin: 10px 0 0;
+  padding: 8px;
   background: #fffce6;
   border-radius: 12px;
   box-shadow: 0 0 8px rgba(0,0,0,0.1);
 }
 
 #dinoEmoji {
-  font-size: 50px;
+  font-size: 44px;
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 /* ジャンプアニメ */
@@ -203,11 +208,11 @@ body {
    コンボバッジ
 ------------------------------ */
 #comboBadge {
-  font-size: 26px;
+  font-size: 22px;
   font-weight: 700;
-  margin-top: 4px;
+  margin-top: 2px;
   color: #ff7b00;
-  height: 32px;
+  height: 28px;
   transition: 0.2s;
   opacity: 0;
 }
@@ -229,9 +234,9 @@ body {
 .star-bar {
   width: 100%;
   background: #ddd;
-  height: 14px;
+  height: 12px;
   border-radius: 10px;
-  margin-top: 10px;
+  margin-top: 6px;
   overflow: hidden;
 }
 
@@ -246,7 +251,7 @@ body {
 ------------------------------ */
 .starburst {
   position: fixed;
-  font-size: 30px;
+  font-size: 28px;
   animation: starburst 0.7s ease-out;
   top: 50%;
   left: 50%;
@@ -264,8 +269,8 @@ body {
    結果画面
 ------------------------------ */
 #resultCard .medal {
-  font-size: 30px;
-  margin-bottom: 10px;
+  font-size: 26px;
+  margin-bottom: 8px;
 }
 
 /* ------------------------------
@@ -289,8 +294,8 @@ body {
 .modal-content {
   background: white;
   position: absolute;
-  inset: 10% 5%;
-  padding: 20px;
+  inset: 8% 4%;
+  padding: 16px;
   overflow-y: auto;
   border-radius: 12px;
 }
@@ -303,12 +308,12 @@ body {
 .kuku-table .hd {
   background: #e0f4ff;
   font-weight: bold;
-  padding: 6px;
+  padding: 4px;
   border: 1px solid #90cfff;
 }
 
 .kuku-table td {
-  padding: 6px;
+  padding: 4px;
   border: 1px solid #b4e3ff;
 }
 
@@ -316,10 +321,10 @@ body {
    タイマー表示
 ------------------------------ */
 #timeDisplay {
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 700;
   color: #ff4444;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 /* ------------------------------
@@ -353,19 +358,19 @@ body {
 }
 
 /* ------------------------------
-   スマホ最適化
+   小さい画面向けさらに縮小
 ------------------------------ */
 @media (max-width: 420px) {
   .problem {
-    font-size: 40px;
-  }
-  #answerBox {
     font-size: 34px;
   }
+  #answerBox {
+    font-size: 30px;
+  }
   #dinoEmoji {
-    font-size: 44px;
+    font-size: 40px;
   }
   .keypad {
-    max-width: 210px;
+    max-width: 200px;
   }
 }
