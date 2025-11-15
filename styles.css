@@ -307,6 +307,13 @@ body {
   100% { transform: translate(-50%, -120%) scale(1.4); opacity: 0; }
 }
 
+/* ここを追加 ↓ */
+#summaryList .medal {
+  text-align: center;
+  font-size: 24px;
+  margin-bottom: 4px;
+}
+
 /* 結果カード */
 #finalScore {
   font-size: 36px;
