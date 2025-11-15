@@ -534,5 +534,8 @@ els.restartBtn.onclick=()=>{
   makeQuiz();
 };
 
+// 初期状態はミュートアイコン
+els.bgmToggle.textContent = "🔇";
+
 /* 初期化 */
 makeQuiz();
