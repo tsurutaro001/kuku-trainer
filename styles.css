@@ -1,5 +1,4 @@
 :root{
-  /* 明るいアドベンチャーテーマ */
   --bg: #e0f7ff;
   --bg2:#f5ffe0;
   --card:#ffffffee;
@@ -23,7 +22,7 @@ body{
   color:var(--text);
 }
 
-/* === ヘッダー === */
+/* ヘッダー */
 .app-header{
   position:sticky; top:0; z-index:10;
   display:flex; align-items:center; justify-content:space-between;
@@ -55,8 +54,8 @@ body{
 }
 .btn.ghost{background:#e0f2fe80}
 .btn.block{width:100%}
+.btn.small{padding:6px 10px; font-size:13px;}
 
-/* モバイルでボタンが折り返さないように少し小さく */
 @media (max-width:480px){
   .brand{font-size:15px}
   .app-header .btn{padding:8px 10px; font-size:14px}
@@ -64,10 +63,10 @@ body{
 
 .container{max-width:720px; margin:16px auto 24px; padding:0 12px}
 
-/* === もんだい数モード === */
+/* もんだい数モード */
 .mode-bar{
   display:flex; align-items:center; gap:8px;
-  margin-bottom:6px; font-size:14px;
+  margin-bottom:4px; font-size:14px;
 }
 .mode-label{color:var(--muted); white-space:nowrap;}
 .mode-buttons{
@@ -82,13 +81,20 @@ body{
   background:#22c55e; color:#022c22; border-color:#16a34a;
 }
 
-/* === ステータス === */
+/* BGMバー */
+.bgm-bar{
+  display:flex;
+  justify-content:flex-end;
+  margin-bottom:6px;
+}
+
+/* ステータスバー */
 .status-bar{
   display:flex; justify-content:space-between; align-items:center;
   margin:4px 0 10px; color:var(--muted); font-weight:600;
 }
 
-/* === 恐竜＆スター === */
+/* 恐竜＆スター */
 .buddy-bar{
   display:flex; flex-wrap:wrap; gap:10px;
   margin-bottom:12px;
@@ -131,7 +137,7 @@ body{
   transition:width .4s ease-out;
 }
 
-/* === カード === */
+/* カード */
 .card{
   background:var(--card);
   border:1px solid #e5e7eb;
@@ -154,7 +160,7 @@ body{
   border-radius:8px;
 }
 
-/* === キーパッド === */
+/* キーパッド */
 .pad{margin-top:14px}
 .pad-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
 .key{
@@ -177,7 +183,7 @@ body{
 
 .actions{display:flex; justify-content:center; margin-top:16px}
 
-/* === エフェクト === */
+/* エフェクトテキスト */
 .fx{
   min-height:32px;
   display:flex; align-items:center; justify-content:center;
@@ -196,7 +202,7 @@ body{
   60%{transform:translateX(7px)}
 }
 
-/* 正解時のスターアニメーション */
+/* スターアニメーション */
 .starburst{
   position:fixed;
   top:50%; left:50%;
@@ -213,7 +219,7 @@ body{
 
 /* 結果 */
 .big{font-size:24px; margin-top:8px}
-#summaryList{margin-top:12px; color:var(--muted); font-size:14px}
+#summaryList{margin-top:12px; color:#4b5563; font-size:14px}
 #summaryList .ok{color:var(--accent); font-weight:700}
 #summaryList .ng{color:var(--danger); font-weight:700}
 
@@ -229,7 +235,7 @@ body{
   max-height:85vh; overflow:auto;
 }
 
-/* 九九表（列×行：上=段, 左=かける数） */
+/* 九九表 */
 .kuku-grid{
   overflow-x:auto;
   border:1px solid #e5e7eb; border-radius:12px; padding:8px;
