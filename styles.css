@@ -1,12 +1,7 @@
 /* ============================================================
-   style.css v13
-   - コンボ演出強化
-   - キーパッド間隔最適化
-   - BGMアイコン右寄せ＆色変化
-   - 恐竜進化＆スキン（森/砂漠/火山/超火山）
+   style.css v14
    ============================================================ */
 
-/* 共通 */
 body {
   margin: 0;
   padding: 0;
@@ -15,14 +10,9 @@ body {
   text-align: center;
   overflow-x: hidden;
 }
+.hidden { display: none !important; }
 
-.hidden {
-  display: none !important;
-}
-
-#app {
-  padding: 4px;
-}
+#app { padding: 4px; }
 
 /* タイトル */
 .title {
@@ -31,7 +21,7 @@ body {
   margin: 6px 0 4px;
 }
 
-/* 難易度 + BGM アイコン */
+/* 難易度 + BGM */
 .top-controls {
   max-width: 420px;
   margin: 0 auto 4px;
@@ -41,12 +31,10 @@ body {
   align-items: center;
 }
 
-/* 難易度ボタンを中央寄せ */
 .mode-select {
   display: inline-flex;
   gap: 6px;
 }
-
 .mode-btn {
   padding: 6px 12px;
   font-size: 13px;
@@ -55,13 +43,17 @@ body {
   border: none;
   font-weight: 700;
 }
-
 .mode-btn.active {
   background: #3398ff;
   color: #fff;
 }
+/* 結果画面中はタップ禁止 */
+.mode-btn.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
 
-/* BGM アイコンを右寄せ */
+/* BGM アイコン */
 #bgmToggle {
   position: absolute;
   right: 0;
@@ -77,16 +69,9 @@ body {
   align-items: center;
   justify-content: center;
 }
+.bgm-on  { background: #ffd18c; }
+.bgm-off { background: #e1e1e1; }
 
-.bgm-on {
-  background: #ffd18c;
-}
-
-.bgm-off {
-  background: #e1e1e1;
-}
-
-/* タイマー */
 #timeDisplay {
   font-size: 22px;
   font-weight: 700;
@@ -94,7 +79,7 @@ body {
   margin-bottom: 4px;
 }
 
-/* 問題カード */
+/* カード共通 */
 .card {
   background: #fff;
   max-width: 420px;
@@ -106,14 +91,14 @@ body {
   overflow-y: auto;
 }
 
-/* ステータス行（控えめに） */
+/* ステータス行 */
 .status-line {
   font-size: 13px;
   color: #777;
   margin-bottom: 4px;
 }
 
-/* 問題：横一列 */
+/* 問題 */
 .problem {
   display: inline-flex;
   align-items: center;
@@ -123,7 +108,7 @@ body {
   margin: 4px 0 2px;
 }
 
-/* 回答欄 */
+/* 回答ボックス */
 #answerBox {
   display: inline-flex;
   justify-content: center;
@@ -138,19 +123,16 @@ body {
   background: #f0faff;
   transition: transform 0.15s ease;
 }
-
-/* 正解時ポヨン */
 .answer-pop {
   animation: ans-pop 0.18s ease;
 }
-
 @keyframes ans-pop {
   0% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-  100% { transform: scale(1); }
+  50%{ transform: scale(1.1); }
+ 100%{ transform: scale(1); }
 }
 
-/* コンボバッジ（バッジ風） */
+/* コンボバッジ */
 #comboBadge {
   display: inline-flex;
   align-items: center;
@@ -165,48 +147,42 @@ body {
   opacity: 0;
   transform: scale(0.8);
 }
-
 .combo-show {
   animation: combo-badge 0.45s ease;
   opacity: 1;
 }
-
 .combo-hot {
   background: #ffcece;
   color: #ff3b3b;
 }
-
 @keyframes combo-badge {
   0%   { transform: scale(0.4); opacity: 0; }
   50%  { transform: scale(1.2); opacity: 1; }
-  100% { transform: scale(1);   opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
-/* 正解・不正解メッセージ */
+/* せいかい／ざんねん */
 .fx {
   height: 30px;
   font-size: 22px;
   font-weight: 800;
   margin-top: 2px;
 }
-
 .fx.ok {
   color: #00a700;
   animation: fx-pop 0.4s ease;
 }
-
 .fx.ng {
   color: #ff3333;
   animation: fx-pop 0.4s ease;
 }
-
 @keyframes fx-pop {
-  0%   { transform: scale(0.7); opacity: 0; }
-  40%  { transform: scale(1.2); opacity: 1; }
-  100% { transform: scale(1);   opacity: 1; }
+  0%   { transform: scale(0.7); opacity: 0;}
+  40%  { transform: scale(1.2); opacity: 1;}
+  100% { transform: scale(1);   opacity: 1;}
 }
 
-/* 丸キーパッド（上下間隔縮め） */
+/* キーパッド */
 .keypad {
   margin-top: 8px;
   display: grid;
@@ -216,7 +192,6 @@ body {
   margin-right: auto;
   gap: 8px;
 }
-
 .key {
   width: 70px;
   height: 70px;
@@ -231,18 +206,15 @@ body {
   color: #223355;
   box-shadow: 0 2px 0 #a8c0e6;
 }
-
 .key:hover {
   background: #c9e0ff;
 }
-
-/* キーパッド無効時 */
 .key.disabled {
   opacity: 0.5;
   pointer-events: none;
 }
 
-/* C / ← ボタン */
+/* C / ← */
 #keyClr,
 #keyBk {
   background: #ffffff !important;
@@ -251,7 +223,7 @@ body {
   box-shadow: 0 2px 0 #d15c5c !important;
 }
 
-/* こたえあわせボタン */
+/* こたえあわせ */
 #submitBtn {
   width: 80%;
   max-width: 280px;
@@ -273,36 +245,21 @@ body {
   border-radius: 16px;
   box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
 }
+.skin-forest      { background: linear-gradient(#fffde4, #e6ffd2); }
+.skin-desert      { background: linear-gradient(#fff3d1, #ffe0a8); }
+.skin-volcano     { background: linear-gradient(#ffe0d1, #ffb9a8); }
+.skin-supervolcano{ background: linear-gradient(#ffd1d1, #ff8888); }
 
-/* スキン（森/砂漠/火山/超火山） */
-.skin-forest {
-  background: linear-gradient(#fffde4, #e6ffd2);
-}
-
-.skin-desert {
-  background: linear-gradient(#fff3d1, #ffe0a8);
-}
-
-.skin-volcano {
-  background: linear-gradient(#ffe0d1, #ffb9a8);
-}
-
-.skin-supervolcano {
-  background: linear-gradient(#ffd1d1, #ff8888);
-}
-
-/* ラベル */
 .dino-label {
   font-size: 11px;
   font-weight: 700;
   color: #555;
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255,255,255,0.7);
   display: inline-block;
   padding: 2px 8px;
   border-radius: 999px;
   margin-bottom: 4px;
 }
-
 #dinoEmoji {
   font-size: 38px;
   display: block;
@@ -318,7 +275,6 @@ body {
   margin-top: 6px;
   overflow: hidden;
 }
-
 #starFill {
   height: 100%;
   background: linear-gradient(90deg, #ffd500, #ffb300);
@@ -329,14 +285,13 @@ body {
 .dino-bounce {
   animation: dino-bounce 0.6s ease;
 }
-
 @keyframes dino-bounce {
   0%   { transform: translateY(0); }
   35%  { transform: translateY(-18px); }
   100% { transform: translateY(0); }
 }
 
-/* スター演出 */
+/* スター演出（正解） */
 .starburst {
   position: fixed;
   font-size: 28px;
@@ -346,7 +301,6 @@ body {
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
-
 @keyframes starburst {
   0%   { transform: translate(-50%, -50%) scale(0.4); opacity: 0; }
   30%  { opacity: 1; }
@@ -354,33 +308,44 @@ body {
 }
 
 /* 結果カード */
-#resultCard .medal {
-  font-size: 26px;
-  margin-bottom: 8px;
-}
-
 #finalScore {
   font-size: 36px;
   font-weight: 800;
   margin: 6px 0;
 }
 
+/* 結果画面の大きめボタン */
+.result-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+.result-btn {
+  flex: 1;
+  max-width: 150px;
+  padding: 10px 0;
+  border-radius: 999px;
+  border: none;
+  font-size: 16px;
+  font-weight: 700;
+  background: #e6e6e6;
+  box-shadow: 0 3px 0 #c0c0c0;
+}
+.result-btn-primary {
+  background: #3398ff;
+  color: #fff;
+  box-shadow: 0 3px 0 #2672c9;
+}
+
 /* 九九モーダル */
-.modal {
-  position: fixed;
-  inset: 0;
-}
-
-.modal.hidden {
-  display: none;
-}
-
+.modal { position: fixed; inset: 0; }
+.modal.hidden { display: none; }
 .modal-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0,0,0,0.45);
 }
-
 .modal-content {
   background: #fff;
   position: absolute;
@@ -389,27 +354,40 @@ body {
   overflow-y: auto;
   border-radius: 12px;
 }
-
 .kuku-table {
   width: 100%;
   border-collapse: collapse;
 }
-
 .kuku-table td,
 .kuku-table .hd {
   padding: 4px;
   border: 1px solid #b4e3ff;
 }
-
 .kuku-table .hd {
   background: #e0f4ff;
   font-weight: 700;
 }
 
-/* 難易度別背景（body用） */
-.bg-easy  { background: #e6f5ff !important; }
-.bg-normal{ background: #d7ffd7 !important; }
-.bg-hard  { background: #ffd7d7 !important; }
+/* 九九フローティングボタン（右下） */
+#kukuFloatingBtn {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: #4aa3ff;
+  color: #fff;
+  font-size: 26px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  z-index: 1000;
+}
+
+/* 背景（難易度） */
+.bg-easy   { background: #e6f5ff !important; }
+.bg-normal { background: #d7ffd7 !important; }
+.bg-hard   { background: #ffd7d7 !important; }
 
 /* スマホ調整 */
 @media (max-width: 420px) {
