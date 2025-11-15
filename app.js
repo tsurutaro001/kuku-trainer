@@ -1,5 +1,7 @@
 /* =====================================================
-   app.js v10（フル強化版）
+   app.js v10.3
+   - 結果画面の戻るボタン実装
+   - BGM 完全停止（難易度変更時に前の音を止める）
    ===================================================== */
 
 let AC=null;
@@ -9,6 +11,7 @@ let bgmBarSec=0;
 let bgmGain=null;
 let currentBgm="easy";
 let bgmSpeedFactor=1.0;
+let bgmNodes=[];      // ← ここに BGM の Oscillator を全部記録
 
 /* Audio 初期化 */
 function initAudio(){
@@ -82,14 +85,13 @@ function playSE(type){
 }
 
 /* BGM パターン */
-const BGM_EASY_MELODY=[ /* 省略せずそのまま */ 
+const BGM_EASY_MELODY=[
   {freq:523.25,len:0.25},{freq:587.33,len:0.25},{freq:659.25,len:0.25},{freq:783.99,len:0.25},
   {freq:659.25,len:0.25},{freq:587.33,len:0.25},{freq:523.25,len:0.25},{freq:0,len:0.25}
 ];
 const BGM_EASY_BASS=[
   {freq:130.81,len:0.5},{freq:0,len:0.25},{freq:98.00,len:0.5},{freq:0,len:0.25}
 ];
-
 const BGM_NORMAL_MELODY=[
   {freq:659.25,len:0.20},{freq:783.99,len:0.20},{freq:987.77,len:0.20},{freq:1046.50,len:0.20},
   {freq:987.77,len:0.20},{freq:783.99,len:0.20},{freq:659.25,len:0.20},{freq:0,len:0.20},
@@ -100,7 +102,6 @@ const BGM_NORMAL_BASS=[
   {freq:130.81,len:0.40},{freq:0,len:0.10},{freq:196.00,len:0.40},{freq:0,len:0.10},
   {freq:146.83,len:0.40},{freq:0,len:0.10},{freq:196.00,len:0.40},{freq:0,len:0.10}
 ];
-
 const BGM_HARD_MELODY=[
   {freq:440.00,len:0.15},{freq:523.25,len:0.15},{freq:587.33,len:0.15},{freq:659.25,len:0.15},
   {freq:587.33,len:0.15},{freq:523.25,len:0.15},{freq:440.00,len:0.15},{freq:0,len:0.15},
@@ -112,13 +113,18 @@ const BGM_HARD_BASS=[
   {freq:110.00,len:0.30},{freq:0,len:0.10},{freq:196.00,len:0.30},{freq:0,len:0.10}
 ];
 
-/* BGM 停止 */
+/* BGM 停止：Oscillator も全部止める */
 function stopBGM(){
   bgmOn=false;
   if(bgmTimer){ clearInterval(bgmTimer); bgmTimer=null; }
   if(AC && bgmGain){
     bgmGain.gain.setValueAtTime(0,AC.currentTime);
   }
+  // ここで今までの音を全部止める
+  bgmNodes.forEach(o=>{
+    try{ o.stop(); }catch(e){}
+  });
+  bgmNodes=[];
 }
 
 /* BGM 1小節スケジュール */
@@ -143,6 +149,7 @@ function scheduleBgmBar(){
       g.gain.setValueAtTime(volMel,tMel);
       g.gain.exponentialRampToValueAtTime(0.0001,tMel+len*0.9);
       o.start(tMel); o.stop(tMel+len);
+      bgmNodes.push(o);   // ← 管理リストに追加
     }
     tMel+=len;
   });
@@ -157,6 +164,7 @@ function scheduleBgmBar(){
       g.gain.setValueAtTime(volBass,tBass);
       g.gain.exponentialRampToValueAtTime(0.0001,tBass+len*0.9);
       o.start(tBass); o.stop(tBass+len);
+      bgmNodes.push(o);   // ← こちらも追加
     }
     tBass+=len;
   });
@@ -168,7 +176,7 @@ function startBGM(){
   if(!AC||!bgmGain) return;
   if(AC.state==="suspended") AC.resume();
 
-  stopBGM();
+  stopBGM(); // いったん完全停止してから
   bgmGain.gain.setValueAtTime(1.0,AC.currentTime);
   bgmOn=true;
 
@@ -215,7 +223,7 @@ const els={
 const modeBtns=document.querySelectorAll(".mode-btn");
 
 /* 状態 */
-let quiz=[],idx=0,correctCount=0,wrongCount=0,totalQuestions=20;
+let quiz=[],idx=0,correctCount=0,wrongCount=0,totalQuestions=10;
 let score=0,combo=0,lastLevel=1,currentInput="",history=[];
 let challengeMode=false,timeLeft=0,timeTimerId=null;
 
@@ -476,7 +484,7 @@ modeBtns.forEach(btn=>{
       document.body.classList.add("bg-hard");
     }
 
-    if(bgmOn) startBGM();
+    if(bgmOn) startBGM();   // ← startBGM 内で完全停止→再開する
     makeQuiz();
   };
 });
@@ -492,6 +500,37 @@ els.bgmToggle.onclick=()=>{
     stopBGM();
     els.bgmToggle.textContent="♪ BGM おん";
   }
+};
+
+/* ▶ 結果画面のボタン処理 */
+
+/* もういちど：難易度そのまま */
+els.againBtn.onclick=()=>{
+  initAudio();
+  els.resultCard.classList.add("hidden");
+  els.quizCard.classList.remove("hidden");
+  makeQuiz();
+};
+
+/* さいしょから：やさしい(10問)＋BGM easy */
+els.restartBtn.onclick=()=>{
+  initAudio();
+  modeBtns.forEach(b=>b.classList.remove("active"));
+  const easyBtn=[...modeBtns].find(b=>b.dataset.qcount==="10");
+  if(easyBtn){ easyBtn.classList.add("active"); }
+
+  totalQuestions=10;
+  currentBgm="easy";
+  challengeMode=false;
+
+  document.body.classList.remove("bg-easy","bg-normal","bg-hard");
+  document.body.classList.add("bg-easy");
+
+  if(bgmOn) startBGM();
+
+  els.resultCard.classList.add("hidden");
+  els.quizCard.classList.remove("hidden");
+  makeQuiz();
 };
 
 /* 初期化 */
