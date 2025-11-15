@@ -1,11 +1,5 @@
 /* ============================================================
    style.css v10（フル強化版）
-   - 恐竜アニメ
-   - スキン3種（ノーマル/ジャングル/火山）
-   - 難易度別背景（bg-easy/bg-normal/bg-hard）
-   - コンボ演出
-   - 花火用余白
-   - ゲーム画面 UI 改善
    ============================================================ */
 
 /* ------------------------------
@@ -18,6 +12,7 @@ body {
   background: #e6f5ff;
   text-align: center;
   overflow-x: hidden;
+  position: relative;
 }
 
 .hidden {
@@ -82,6 +77,7 @@ body {
   background: #ffd18c;
   border-radius: 10px;
   font-weight: bold;
+  border: none;
 }
 
 /* ------------------------------
@@ -126,6 +122,7 @@ body {
   padding: 14px 0;
   font-size: 20px;
   font-weight: bold;
+  border: none;
 }
 
 .key:hover {
@@ -136,6 +133,7 @@ body {
   background: #ffd0d0 !important;
 }
 
+/* 送信ボタン */
 #submitBtn {
   width: 80%;
   margin-top: 14px;
@@ -145,6 +143,7 @@ body {
   border-radius: 12px;
   font-size: 20px;
   font-weight: 700;
+  border: none;
 }
 
 /* ------------------------------
@@ -243,13 +242,6 @@ body {
 }
 
 /* ------------------------------
-   花火スペース
------------------------------- */
-body {
-  position: relative;
-}
-
-/* ------------------------------
    スター演出
 ------------------------------ */
 .starburst {
@@ -277,7 +269,7 @@ body {
 }
 
 /* ------------------------------
-   九九表
+   九九表モーダル
 ------------------------------ */
 .modal {
   position: fixed;
@@ -331,26 +323,22 @@ body {
 }
 
 /* ------------------------------
-   3種のスキンテーマ（正解率）
+   スキン（正解率で変化）
 ------------------------------ */
-
-/* 1) ノーマル */
 .skin-normal {
   background: #e8f7ff;
 }
 
-/* 2) ジャングル */
 .skin-jungle {
   background: linear-gradient(#ccffcc, #a0e8a0);
 }
 
-/* 3) 火山 */
 .skin-volcano {
   background: linear-gradient(#ffb39c, #ff7a51);
 }
 
 /* ------------------------------
-   難易度別背景
+   難易度別背景（上書き用）
 ------------------------------ */
 .bg-easy {
   background: #e6f5ff !important;
