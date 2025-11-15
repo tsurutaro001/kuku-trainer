@@ -1,263 +1,433 @@
-:root{
-  --bg: #e0f7ff;
-  --bg2:#f5ffe0;
-  --card:#ffffffee;
-  --text:#064e3b;
-  --muted:#6b7280;
-  --accent:#22c55e;
-  --accent2:#facc15;
-  --danger:#ef4444;
-  --key:#f0f9ff;
-  --keyBorder:#cbd5e1;
-}
-*{box-sizing:border-box}
-html,body{height:100%}
-body{
-  margin:0;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif;
-  background:
-    radial-gradient(1200px 600px at 80% -10%, #bfdbfe 0%, transparent 60%),
-    radial-gradient(900px 500px at -10% 20%, #bbf7d0 0%, transparent 60%),
-    linear-gradient(180deg,var(--bg),var(--bg2));
-  color:var(--text);
+// app.js v8.6
+// ・やさしい/ふつう/ちょうせん（10/20/30問）
+// ・恐竜レベル＆スター
+// ・正解/不正解/コンボ/レベルアップ/結果発表 SE
+// ・8bit BGM（ON/OFF）
+
+let AC = null;          // AudioContext
+let bgmOn = false;      // BGM状態
+let bgmTimer = null;    // BGMループ用タイマー
+let bgmBarSec = 0;      // 1小節の秒数
+
+function initAudio(){
+  if(!AC){
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if(!Ctx) return;
+    AC = new Ctx();
+  }
 }
 
-/* ヘッダー */
-.app-header{
-  position:sticky; top:0; z-index:10;
-  display:flex; align-items:center; justify-content:space-between;
-  gap:12px;
-  padding:10px 12px;
-  background:#e0f2fec8;
-  backdrop-filter: blur(8px);
-  border-bottom:1px solid #bae6fd;
-}
-.hdr-left{min-width:0; flex:1 1 auto}
-.hdr-right{
-  display:flex; flex-wrap:nowrap; gap:8px;
-  flex:0 0 auto; white-space:nowrap;
-}
-.brand{font-weight:800; letter-spacing:0.02em}
+/* ========= 効果音 ========= */
+function playSE(type){
+  if(!AC) return;
+  const osc = AC.createOscillator();
+  const gain = AC.createGain();
+  osc.connect(gain);
+  gain.connect(AC.destination);
 
-.btn{
-  -webkit-tap-highlight-color: transparent;
-  background:#e0f2fe; color:var(--text);
-  border:1px solid #bfdbfe;
-  padding:10px 14px; border-radius:999px;
-  font-size:16px; line-height:1; cursor:pointer;
-}
-.btn:hover{filter:brightness(1.05)}
-.btn.primary{
-  background:linear-gradient(180deg,#34d399,#22c55e);
-  border-color:#16a34a;
-  color:#022c22;
-}
-.btn.ghost{background:#e0f2fe80}
-.btn.block{width:100%}
-.btn.small{padding:6px 10px; font-size:13px;}
+  function end(t){
+    osc.start();
+    osc.stop(AC.currentTime + t);
+  }
 
-@media (max-width:480px){
-  .brand{font-size:15px}
-  .app-header .btn{padding:8px 10px; font-size:14px}
-}
+  if(type === "OK"){
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(900, AC.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1500, AC.currentTime + 0.28);
+    gain.gain.setValueAtTime(0.3, AC.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + 0.28);
+    end(0.28);
+    return;
+  }
 
-.container{max-width:720px; margin:16px auto 24px; padding:0 12px}
+  if(type === "NG"){
+    osc.type = "square";
+    osc.frequency.setValueAtTime(220, AC.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(110, AC.currentTime + 0.32);
+    gain.gain.setValueAtTime(0.3, AC.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + 0.32);
+    end(0.32);
+    return;
+  }
 
-/* もんだい数モード */
-.mode-bar{
-  display:flex; align-items:center; gap:8px;
-  margin-bottom:4px; font-size:14px;
-}
-.mode-label{color:var(--muted); white-space:nowrap;}
-.mode-buttons{
-  display:flex; gap:6px; flex-wrap:nowrap;
-}
-.mode-btn{
-  border-radius:999px; border:1px solid #e5e7eb;
-  background:#f9fafb; color:#374151;
-  padding:6px 10px; font-size:13px; cursor:pointer;
-}
-.mode-btn.active{
-  background:#22c55e; color:#022c22; border-color:#16a34a;
-}
+  if(type === "COMBO2"){
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(700, AC.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1000, AC.currentTime + 0.15);
+    gain.gain.value = 0.2;
+    end(0.15);
+    return;
+  }
 
-/* BGMバー */
-.bgm-bar{
-  display:flex;
-  justify-content:flex-end;
-  margin-bottom:6px;
-}
+  if(type === "COMBO3"){
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(900, AC.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1600, AC.currentTime + 0.22);
+    gain.gain.value = 0.25;
+    end(0.22);
+    return;
+  }
 
-/* ステータスバー */
-.status-bar{
-  display:flex; justify-content:space-between; align-items:center;
-  margin:4px 0 10px; color:var(--muted); font-weight:600;
-}
+  if(type === "COMBO4"){
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(800, AC.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(2000, AC.currentTime + 0.28);
+    gain.gain.value = 0.28;
+    end(0.28);
+    return;
+  }
 
-/* 恐竜＆スター */
-.buddy-bar{
-  display:flex; flex-wrap:wrap; gap:10px;
-  margin-bottom:12px;
-}
-.buddy{
-  flex:1 1 55%;
-  display:flex; align-items:center; gap:8px;
-  padding:8px 10px;
-  background:#fefce8;
-  border-radius:14px;
-  border:1px solid #fde68a;
-  box-shadow:0 3px 6px rgba(0,0,0,.05);
-}
-.dino{font-size:36px}
-.dino-text{font-size:13px}
-.dino-msg{color:#6b7280; margin-top:2px}
-#dinoName{font-weight:700}
+  if(type === "LEVELUP"){
+    osc.type = "square";
+    osc.frequency.setValueAtTime(600, AC.currentTime);
+    osc.frequency.linearRampToValueAtTime(1200, AC.currentTime + 0.25);
+    gain.gain.value = 0.25;
+    end(0.25);
+    return;
+  }
 
-.star-bar{
-  flex:1 1 40%;
-  padding:8px 10px;
-  background:#eff6ff;
-  border-radius:14px;
-  border:1px solid #bfdbfe;
-  display:flex; flex-direction:column; gap:6px;
-  box-shadow:0 3px 6px rgba(0,0,0,.05);
-}
-.star-label{font-size:13px; color:#1d4ed8; font-weight:700}
-.star-track{
-  position:relative;
-  width:100%; height:10px;
-  border-radius:999px;
-  background:#e5e7eb;
-  overflow:hidden;
-}
-.star-fill{
-  position:absolute; inset:0;
-  width:0%;
-  background:linear-gradient(90deg,#facc15,#fb923c);
-  transition:width .4s ease-out;
+  if(type === "RESULT"){
+    osc.type = "square";
+    osc.frequency.setValueAtTime(800, AC.currentTime);
+    osc.frequency.linearRampToValueAtTime(1200, AC.currentTime + 0.12);
+    osc.frequency.linearRampToValueAtTime(1000, AC.currentTime + 0.24);
+    gain.gain.value = 0.25;
+    end(0.28);
+    return;
+  }
 }
 
-/* カード */
-.card{
-  background:var(--card);
-  border:1px solid #e5e7eb;
-  border-radius:18px;
-  padding:16px;
-  box-shadow: 0 12px 30px rgba(15,23,42,.12);
-}
-.hidden{display:none}
+/* ========= 8bit BGM ========= */
+const BGM_NOTES = [
+  { freq: 523.25, len: 0.25 }, // C5
+  { freq: 659.25, len: 0.25 }, // E5
+  { freq: 783.99, len: 0.25 }, // G5
+  { freq: 659.25, len: 0.25 }, // E5
+  { freq: 0,       len: 0.25 }, // 休符
+  { freq: 659.25, len: 0.25 }, // E5
+  { freq: 783.99, len: 0.25 }, // G5
+  { freq: 987.77, len: 0.25 }, // B5
+];
 
-.q-label{color:var(--muted); font-size:14px}
-.question{
-  display:flex; align-items:center; gap:10px;
-  font-size:40px; letter-spacing:.02em; margin-top:6px;
-}
-.ansbox{
-  display:inline-block; min-width:56px; padding:4px 8px;
-  border-bottom:3px dashed #d4d4d4; text-align:center;
-  font-variant-numeric: tabular-nums;
-  background:#e5e7eb;
-  border-radius:8px;
-}
+function scheduleBgmBar(){
+  if(!AC || !bgmOn) return;
+  const now = AC.currentTime;
+  let t = now;
+  const vol = 0.08;
 
-/* キーパッド */
-.pad{margin-top:14px}
-.pad-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
-.key{
-  padding:16px 0;
-  border-radius:16px;
-  border:2px solid var(--keyBorder);
-  background:radial-gradient(140% 80% at 50% -10%, #ffffff,#e0f2fe);
-  color:#0f172a;
-  font-size:22px; line-height:1;
-  font-weight:600;
-  box-shadow: inset 0 2px 0 rgba(255,255,255,0.8), 0 3px 0 rgba(148,163,184,0.7);
-}
-.key.wide{grid-column: span 2}
-.key.danger{
-  background:radial-gradient(140% 80% at 50% -10%, #fee2e2,#fecaca);
-  border-color:#fca5a5;
-  color:#7f1d1d;
-}
-.key:active{transform:translateY(1px); box-shadow:0 1px 0 rgba(148,163,184,0.7)}
-
-.actions{display:flex; justify-content:center; margin-top:16px}
-
-/* エフェクトテキスト */
-.fx{
-  min-height:32px;
-  display:flex; align-items:center; justify-content:center;
-  font-size:22px; font-weight:900; margin-top:4px;
-}
-.fx.ok{color:var(--accent2); text-shadow:0 0 8px rgba(250,204,21,.7); animation: pop .9s ease}
-.fx.ng{color:var(--danger); animation: shake 1.1s ease}
-@keyframes pop{
-  0%{transform:scale(.7);opacity:.2}
-  80%{transform:scale(1.06);opacity:1}
-  100%{transform:scale(1);opacity:1}
-}
-@keyframes shake{
-  0%,100%{transform:translateX(0)}
-  20%{transform:translateX(-7px)}
-  60%{transform:translateX(7px)}
+  BGM_NOTES.forEach(note=>{
+    const len = note.len;
+    if(note.freq > 0){
+      const osc = AC.createOscillator();
+      const gain = AC.createGain();
+      osc.connect(gain);
+      gain.connect(AC.destination);
+      osc.type = "square";
+      osc.frequency.setValueAtTime(note.freq, t);
+      gain.gain.setValueAtTime(vol, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + len*0.9);
+      osc.start(t);
+      osc.stop(t + len);
+    }
+    t += len;
+  });
 }
 
-/* スターアニメーション */
-.starburst{
-  position:fixed;
-  top:50%; left:50%;
-  transform:translate(-50%,-50%) scale(0.5);
-  font-size:56px;
-  pointer-events:none;
-  animation:burst 1s ease-out forwards;
-}
-@keyframes burst{
-  0%{transform:translate(-50%,-30%) scale(0.4); opacity:0;}
-  40%{transform:translate(-50%,-80%) scale(1.2); opacity:1;}
-  100%{transform:translate(-50%,-120%) scale(0.2); opacity:0;}
+function startBGM(){
+  if(!AC || bgmOn) return;
+  bgmOn = true;
+  bgmBarSec = BGM_NOTES.reduce((s,n)=>s+n.len,0);
+  scheduleBgmBar();
+  bgmTimer = setInterval(scheduleBgmBar, bgmBarSec*1000);
 }
 
-/* 結果 */
-.big{font-size:24px; margin-top:8px}
-#summaryList{margin-top:12px; color:#4b5563; font-size:14px}
-#summaryList .ok{color:var(--accent); font-weight:700}
-#summaryList .ng{color:var(--danger); font-weight:700}
-
-/* モーダル（九九表） */
-.modal{position:fixed; inset:0; display:grid; place-items:center}
-.modal.hidden{display:none}
-.modal-backdrop{position:absolute; inset:0; background:#00000055}
-.modal-content{
-  position:relative; z-index:1; width:min(900px,92vw);
-  background:#ffffff;
-  border:2px solid #bfdbfe;
-  border-radius:16px; padding:16px;
-  max-height:85vh; overflow:auto;
+function stopBGM(){
+  bgmOn = false;
+  if(bgmTimer){
+    clearInterval(bgmTimer);
+    bgmTimer = null;
+  }
 }
 
-/* 九九表 */
-.kuku-grid{
-  overflow-x:auto;
-  border:1px solid #e5e7eb; border-radius:12px; padding:8px;
-  background:#f8fafc;
-}
-.kuku-table{
-  border-collapse:separate; border-spacing:6px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  font-size:14px;
-}
-.kuku-table th, .kuku-table td{
-  background:#ffffff;
-  border:1px solid #e5e7eb;
-  color:#111827;
-  border-radius:8px; padding:6px 8px; text-align:center; white-space:nowrap;
-}
-.kuku-table th.hd{color:#1d4ed8; background:#dbeafe}
-.kuku-table td.expr{letter-spacing:.02em}
+/* ========= DOM ========= */
+const els = {
+  qNo: document.getElementById('qNo'),
+  qTotal: document.getElementById('qTotal'),
+  left: document.getElementById('left'),
+  right: document.getElementById('right'),
+  score: document.getElementById('score'),
+  answerBox: document.getElementById('answerBox'),
+  quizCard: document.getElementById('quizCard'),
+  resultCard: document.getElementById('resultCard'),
+  finalScore: document.getElementById('finalScore'),
+  summaryList: document.getElementById('summaryList'),
+  submitBtn: document.getElementById('submitBtn'),
+  againBtn: document.getElementById('againBtn'),
+  restartBtn: document.getElementById('restartBtn'),
+  keyBk: document.getElementById('keyBk'),
+  keyClr: document.getElementById('keyClr'),
+  fx: document.getElementById('fx'),
+  dinoEmoji: document.getElementById('dinoEmoji'),
+  dinoName: document.getElementById('dinoName'),
+  dinoMsg: document.getElementById('dinoMsg'),
+  starFill: document.getElementById('starFill'),
+  showTableBtn: document.getElementById('showTableBtn'),
+  tableModal: document.getElementById('tableModal'),
+  closeModal: document.getElementById('closeModal'),
+  kukuGrid: document.getElementById('kukuGrid'),
+  bgmToggle: document.getElementById('bgmToggle'),
+};
 
-/* モバイル微調整 */
-@media (hover:none){
-  .btn{padding:12px 14px; font-size:16px}
-  .question{font-size:36px}
-  .kuku-table{font-size:13px}
+const modeBtns = document.querySelectorAll(".mode-btn");
+
+let quiz = [];
+let idx = 0;
+let correctCount = 0;
+let totalQuestions = 20;
+let score = 0;
+let combo = 0;
+let lastLevel = 1;
+let currentInput = "";
+let history = [];
+
+/* ========= 問題生成 ========= */
+function makeQuiz(){
+  const all = [];
+  for(let a=1;a<=9;a++){
+    for(let b=1;b<=9;b++){
+      all.push([a,b]);
+    }
+  }
+  for(let i=all.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [all[i], all[j]] = [all[j], all[i]];
+  }
+
+  quiz = all.slice(0,totalQuestions);
+  idx = 0;
+  correctCount = 0;
+  score = 0;
+  combo = 0;
+  lastLevel = 1;
+  currentInput = "";
+  history = [];
+
+  els.qTotal.textContent = totalQuestions;
+  updateUI();
+  updateBuddy();
 }
+
+function updateUI(){
+  els.qNo.textContent = idx+1;
+  els.left.textContent = quiz[idx][0];
+  els.right.textContent = quiz[idx][1];
+  els.score.textContent = score;
+  currentInput = "";
+  renderAnswer();
+  feedback("");
+}
+
+function renderAnswer(){
+  els.answerBox.textContent = currentInput || "□";
+}
+
+/* ========= キーパッド ========= */
+document.querySelectorAll(".key").forEach(btn=>{
+  const t = btn.textContent.trim();
+  if(/^\d$/.test(t)){
+    btn.onclick = ()=>{
+      initAudio();
+      if(currentInput.length < 2){
+        currentInput += t;
+        renderAnswer();
+      }
+    };
+  }
+});
+
+els.keyBk.onclick = ()=>{
+  initAudio();
+  currentInput = currentInput.slice(0,-1);
+  renderAnswer();
+};
+els.keyClr.onclick = ()=>{
+  initAudio();
+  currentInput = "";
+  renderAnswer();
+};
+
+/* ========= 採点 ========= */
+els.submitBtn.onclick = ()=>{
+  initAudio();
+  if(!currentInput){
+    feedback("数字を入力してね", null);
+    return;
+  }
+
+  const [a,b] = quiz[idx];
+  const ans = a*b;
+  const user = parseInt(currentInput,10);
+  const ok = (user === ans);
+
+  if(ok){
+    correctCount++;
+    combo++;
+    playSE("OK");
+    spawnStar();
+    if(combo === 2) playSE("COMBO2");
+    if(combo === 3) playSE("COMBO3");
+    if(combo >= 4) playSE("COMBO4");
+  }else{
+    combo = 0;
+    playSE("NG");
+  }
+
+  score = Math.round((correctCount/totalQuestions)*100);
+  els.score.textContent = score;
+
+  history.push({a,b,ans,user,ok});
+  feedback("", ok);
+  updateBuddy();
+
+  setTimeout(()=>{
+    if(idx < totalQuestions-1){
+      idx++;
+      updateUI();
+    }else{
+      showResult();
+    }
+  }, ok ? 1000 : 1200);
+};
+
+function feedback(msg, ok){
+  els.fx.className = "fx";
+  if(ok === true){
+    els.fx.classList.add("ok");
+    els.fx.textContent = "🌟 せいかい！";
+  }else if(ok === false){
+    els.fx.classList.add("ng");
+    els.fx.textContent = "🪲 ざんねん！";
+  }else{
+    els.fx.textContent = msg || "";
+  }
+}
+
+/* ========= 恐竜・スター ========= */
+function updateBuddy(){
+  const ratio = totalQuestions ? (correctCount/totalQuestions) : 0;
+  els.starFill.style.width = (ratio*100) + "%";
+
+  let level = 1;
+  if(ratio >= 0.7) level = 3;
+  else if(ratio >= 0.35) level = 2;
+
+  if(level > lastLevel){
+    playSE("LEVELUP");
+  }
+  lastLevel = level;
+
+  els.dinoEmoji.textContent = level===1 ? "🦕" : (level===2 ? "🦖" : "🦖🔥");
+  els.dinoName.textContent = `きょうりゅうレベル ${level}`;
+
+  if(ratio === 1){
+    els.dinoMsg.textContent = "ぜんもんせいかい！すごい！";
+  }else if(ratio > 0.7){
+    els.dinoMsg.textContent = "あとちょっと！";
+  }else if(ratio > 0.3){
+    els.dinoMsg.textContent = "いいちょうし！";
+  }else{
+    els.dinoMsg.textContent = "がんばろう！";
+  }
+}
+
+/* ========= スターアニメ ========= */
+function spawnStar(){
+  const star = document.createElement("div");
+  star.textContent = "⭐";
+  star.className = "starburst";
+  document.body.appendChild(star);
+  setTimeout(()=>star.remove(),1000);
+}
+
+/* ========= 結果 ========= */
+function showResult(){
+  els.quizCard.classList.add("hidden");
+  els.resultCard.classList.remove("hidden");
+  els.finalScore.textContent = score;
+
+  els.summaryList.innerHTML = history.map((h,i)=>
+    `Q${i+1}：${h.a}×${h.b}＝${h.ans} ／ あなた：<strong class="${h.ok?'ok':'ng'}">${h.user}</strong>`
+  ).join("<br>");
+
+  playSE("RESULT");
+}
+
+els.againBtn.onclick = ()=>{
+  els.resultCard.classList.add("hidden");
+  els.quizCard.classList.remove("hidden");
+  makeQuiz();
+};
+els.restartBtn.onclick = ()=>{
+  els.resultCard.classList.add("hidden");
+  els.quizCard.classList.remove("hidden");
+  makeQuiz();
+};
+
+/* ========= 九九表 ========= */
+els.showTableBtn.onclick = ()=>{
+  buildKukuGrid();
+  els.tableModal.classList.remove("hidden");
+};
+els.closeModal.onclick = ()=>{
+  els.tableModal.classList.add("hidden");
+};
+els.tableModal.querySelector(".modal-backdrop").onclick = ()=>{
+  els.tableModal.classList.add("hidden");
+};
+
+function buildKukuGrid(){
+  let html = `<table class="kuku-table"><thead><tr><th class="hd">×</th>`;
+  for(let j=1;j<=9;j++) html += `<th class="hd">${j}</th>`;
+  html += `</tr></thead><tbody>`;
+  for(let i=1;i<=9;i++){
+    html += `<tr><th class="hd">${i}</th>`;
+    for(let j=1;j<=9;j++){
+      html += `<td class="expr">${j}×${i}=${i*j}</td>`;
+    }
+    html += `</tr>`;
+  }
+  html += `</tbody></table>`;
+  els.kukuGrid.innerHTML = html;
+}
+
+/* ========= モード切り替え ========= */
+modeBtns.forEach(btn=>{
+  btn.onclick = ()=>{
+    initAudio();
+    modeBtns.forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+
+    const n = Number(btn.dataset.qcount);
+    if(!n) return;
+    totalQuestions = n;
+    makeQuiz();
+  };
+});
+
+/* ========= BGMトグル ========= */
+if(els.bgmToggle){
+  els.bgmToggle.onclick = ()=>{
+    initAudio();
+    if(!AC) return;
+    if(!bgmOn){
+      startBGM();
+      els.bgmToggle.textContent = "♪ BGM きる";
+    }else{
+      stopBGM();
+      els.bgmToggle.textContent = "♪ BGM おん";
+    }
+  };
+}
+
+/* ========= 初期化 ========= */
+makeQuiz();
