@@ -1,8 +1,8 @@
-// app.js v8.6
+// app.js v8.7
 // ・やさしい/ふつう/ちょうせん（10/20/30問）
 // ・恐竜レベル＆スター
 // ・正解/不正解/コンボ/レベルアップ/結果発表 SE
-// ・8bit BGM（ON/OFF）
+// ・8bit BGM（ON/OFF）…メロディ＋ベースの2声で少しリッチに
 
 let AC = null;          // AudioContext
 let bgmOn = false;      // BGM状態
@@ -97,25 +97,58 @@ function playSE(type){
   }
 }
 
-/* ========= 8bit BGM ========= */
-const BGM_NOTES = [
+/* ========= 8bit BGM（メロディ＋ベース） ========= */
+/**
+ * メロディ：Cメジャーっぽい16ステップ
+ * ベース：C/G を交互に鳴らす
+ * len は秒。全体で 4秒くらいのループ。
+ */
+const BGM_MELODY = [
+  // 上昇 → ちょっと下がる → 休符 → 別フレーズ
   { freq: 523.25, len: 0.25 }, // C5
+  { freq: 587.33, len: 0.25 }, // D5
   { freq: 659.25, len: 0.25 }, // E5
   { freq: 783.99, len: 0.25 }, // G5
+
   { freq: 659.25, len: 0.25 }, // E5
-  { freq: 0,       len: 0.25 }, // 休符
+  { freq: 587.33, len: 0.25 }, // D5
+  { freq: 523.25, len: 0.25 }, // C5
+  { freq:   0.00, len: 0.25 }, // rest
+
   { freq: 659.25, len: 0.25 }, // E5
   { freq: 783.99, len: 0.25 }, // G5
   { freq: 987.77, len: 0.25 }, // B5
+  { freq:1046.50, len: 0.25 }, // C6
+
+  { freq: 987.77, len: 0.25 }, // B5
+  { freq: 783.99, len: 0.25 }, // G5
+  { freq: 659.25, len: 0.25 }, // E5
+  { freq:   0.00, len: 0.25 }, // rest
+];
+
+const BGM_BASS = [
+  // C3 と G2 を交互に（低め＆控えめ）
+  { freq: 130.81, len: 0.5 }, // C3
+  { freq:   0.00, len: 0.25 }, // rest
+  { freq:  98.00, len: 0.5 }, // G2
+  { freq:   0.00, len: 0.25 }, // rest
+
+  { freq: 130.81, len: 0.5 },
+  { freq:   0.00, len: 0.25 },
+  { freq:  98.00, len: 0.5 },
+  { freq:   0.00, len: 0.25 },
 ];
 
 function scheduleBgmBar(){
   if(!AC || !bgmOn) return;
   const now = AC.currentTime;
-  let t = now;
-  const vol = 0.08;
+  let tMel = now;
+  let tBass = now;
+  const volMel = 0.07;
+  const volBass = 0.04;
 
-  BGM_NOTES.forEach(note=>{
+  // メロディ
+  BGM_MELODY.forEach(note=>{
     const len = note.len;
     if(note.freq > 0){
       const osc = AC.createOscillator();
@@ -123,20 +156,38 @@ function scheduleBgmBar(){
       osc.connect(gain);
       gain.connect(AC.destination);
       osc.type = "square";
-      osc.frequency.setValueAtTime(note.freq, t);
-      gain.gain.setValueAtTime(vol, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + len*0.9);
-      osc.start(t);
-      osc.stop(t + len);
+      osc.frequency.setValueAtTime(note.freq, tMel);
+      gain.gain.setValueAtTime(volMel, tMel);
+      gain.gain.exponentialRampToValueAtTime(0.001, tMel + len*0.9);
+      osc.start(tMel);
+      osc.stop(tMel + len);
     }
-    t += len;
+    tMel += len;
+  });
+
+  // ベース
+  BGM_BASS.forEach(note=>{
+    const len = note.len;
+    if(note.freq > 0){
+      const osc = AC.createOscillator();
+      const gain = AC.createGain();
+      osc.connect(gain);
+      gain.connect(AC.destination);
+      osc.type = "square";
+      osc.frequency.setValueAtTime(note.freq, tBass);
+      gain.gain.setValueAtTime(volBass, tBass);
+      gain.gain.exponentialRampToValueAtTime(0.001, tBass + len*0.9);
+      osc.start(tBass);
+      osc.stop(tBass + len);
+    }
+    tBass += len;
   });
 }
 
 function startBGM(){
   if(!AC || bgmOn) return;
   bgmOn = true;
-  bgmBarSec = BGM_NOTES.reduce((s,n)=>s+n.len,0);
+  bgmBarSec = BGM_MELODY.reduce((s,n)=>s+n.len,0);
   scheduleBgmBar();
   bgmTimer = setInterval(scheduleBgmBar, bgmBarSec*1000);
 }
