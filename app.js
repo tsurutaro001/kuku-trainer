@@ -1,10 +1,5 @@
 /* =====================================================
-   app.js v11
-   - BGMアイコン制御
-   - コンボ演出強化
-   - 恐竜進化（🦎→🐊→🦖→🌋🦖🦕🌋）
-   - スキン切り替え
-   - キーパッド一時無効化
+   app.js v12
    ===================================================== */
 
 let AC = null;
@@ -15,7 +10,7 @@ let currentBgm = "easy";
 let bgmSpeedFactor = 1.0;
 let bgmNodes = [];
 
-/* ---------- Audio / BGM ---------- */
+/* --------- Audio / BGM --------- */
 function initAudio() {
   if (!AC) {
     const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -29,7 +24,6 @@ function initAudio() {
   }
 }
 
-/* 効果音 */
 function playSE(type) {
   if (!AC) return;
   const osc = AC.createOscillator();
@@ -86,13 +80,13 @@ function playSE(type) {
   }
 }
 
-/* BGMパターン */
+/* BGM データ（略記） */
 const BGM_EASY_MELODY = [
   {freq:523.25,len:0.25},{freq:587.33,len:0.25},{freq:659.25,len:0.25},{freq:783.99,len:0.25},
   {freq:659.25,len:0.25},{freq:587.33,len:0.25},{freq:523.25,len:0.25},{freq:0,len:0.25}
 ];
 const BGM_EASY_BASS = [
-  {freq:130.81,len:0.5},{freq:0,len:0.25},{freq:98.00,len:0.5},{freq:0,len:0.25}
+  {freq:130.81,len:0.5},{freq:0,len:0.25},{freq:98.00 ,len:0.5},{freq:0,len:0.25}
 ];
 const BGM_NORMAL_MELODY = [
   {freq:659.25,len:0.20},{freq:783.99,len:0.20},{freq:987.77,len:0.20},{freq:1046.50,len:0.20},
@@ -128,13 +122,9 @@ function stopBGM() {
 function scheduleBgmBar() {
   if (!AC || !bgmOn || !bgmGain) return;
   let MELODY, BASS;
-  if (currentBgm === "easy") {
-    MELODY = BGM_EASY_MELODY; BASS = BGM_EASY_BASS;
-  } else if (currentBgm === "normal") {
-    MELODY = BGM_NORMAL_MELODY; BASS = BGM_NORMAL_BASS;
-  } else {
-    MELODY = BGM_HARD_MELODY; BASS = BGM_HARD_BASS;
-  }
+  if (currentBgm === "easy") { MELODY = BGM_EASY_MELODY; BASS = BGM_EASY_BASS; }
+  else if (currentBgm === "normal") { MELODY = BGM_NORMAL_MELODY; BASS = BGM_NORMAL_BASS; }
+  else { MELODY = BGM_HARD_MELODY; BASS = BGM_HARD_BASS; }
 
   const now = AC.currentTime;
   let tMel = now, tBass = now;
@@ -190,7 +180,7 @@ function startBGM() {
   bgmTimer = setInterval(scheduleBgmBar, barSec * 1000);
 }
 
-/* ---------- DOM ---------- */
+/* --------- DOM --------- */
 const els = {
   qNo: document.getElementById("qNo"),
   qTotal: document.getElementById("qTotal"),
@@ -218,404 +208,4 @@ const els = {
   tableModal: document.getElementById("tableModal"),
   closeModal: document.getElementById("closeModal"),
   kukuGrid: document.getElementById("kukuGrid"),
-  bgmToggle: document.getElementById("bgmToggle"),
-  timeDisplay: document.getElementById("timeDisplay")
-};
-const modeBtns = document.querySelectorAll(".mode-btn");
-const keys = document.querySelectorAll(".key");
-
-/* ---------- 状態 ---------- */
-let quiz = [], idx = 0, correctCount = 0, wrongCount = 0, totalQuestions = 10;
-let score = 0, combo = 0, currentInput = "", history = [];
-let challengeMode = false;
-let timeLeft = 0, timeTimerId = null;
-let lastStage = 1;
-
-/* タイマー */
-function startTimer() {
-  timeLeft = 60;
-  els.timeDisplay.textContent = "60";
-  els.timeDisplay.classList.remove("hidden");
-  timeTimerId = setInterval(() => {
-    timeLeft--;
-    els.timeDisplay.textContent = timeLeft;
-    if (timeLeft <= 0) {
-      clearInterval(timeTimerId);
-      showResult("timeup");
-    }
-  }, 1000);
-}
-function stopTimer() {
-  if (timeTimerId) {
-    clearInterval(timeTimerId);
-    timeTimerId = null;
-  }
-  els.timeDisplay.classList.add("hidden");
-}
-
-/* ---------- 問題生成 ---------- */
-function makeQuiz() {
-  const all = [];
-  for (let a = 1; a <= 9; a++) for (let b = 1; b <= 9; b++) all.push([a,b]);
-  for (let i = all.length-1; i>0; i--) {
-    const j = Math.floor(Math.random()*(i+1));
-    [all[i], all[j]] = [all[j], all[i]];
-  }
-  quiz = all.slice(0, totalQuestions);
-
-  idx = 0; correctCount = 0; wrongCount = 0; score = 0;
-  combo = 0; currentInput = ""; history = [];
-  lastStage = 1;
-  if (challengeMode) startTimer(); else stopTimer();
-
-  els.qTotal.textContent = totalQuestions;
-  updateUI();
-  updateBuddy();
-}
-
-/* UI更新 */
-function updateUI() {
-  els.qNo.textContent = idx + 1;
-  els.left.textContent = quiz[idx][0];
-  els.right.textContent = quiz[idx][1];
-  els.score.textContent = score;
-  currentInput = "";
-  renderAnswer();
-  feedback("");
-  updateComboUI();
-}
-
-/* 回答表示 */
-function renderAnswer() {
-  els.answerBox.textContent = currentInput || "□";
-}
-
-/* キーパッド有効/無効 */
-function setKeypadEnabled(enabled) {
-  keys.forEach(k => {
-    if (enabled) {
-      k.classList.remove("disabled");
-    } else {
-      k.classList.add("disabled");
-    }
-  });
-}
-
-/* キーパッド入力 */
-keys.forEach(btn => {
-  const t = btn.textContent.trim();
-  if (/^\d$/.test(t)) {
-    btn.onclick = () => {
-      initAudio();
-      if (btn.classList.contains("disabled")) return;
-      if (currentInput.length < 2) {
-        currentInput += t;
-        renderAnswer();
-      }
-    };
-  }
-});
-els.keyBk.onclick = () => {
-  initAudio();
-  if (els.keyBk.classList.contains("disabled")) return;
-  currentInput = currentInput.slice(0, -1);
-  renderAnswer();
-};
-els.keyClr.onclick = () => {
-  initAudio();
-  if (els.keyClr.classList.contains("disabled")) return;
-  currentInput = "";
-  renderAnswer();
-};
-
-/* 採点 */
-els.submitBtn.onclick = () => {
-  initAudio();
-  if (!currentInput) {
-    feedback("数字を入力してね", null);
-    return;
-  }
-
-  const [a,b] = quiz[idx];
-  const ans = a * b;
-  const user = parseInt(currentInput, 10);
-  const ok = (user === ans);
-
-  // 正解時のポヨン
-  els.answerBox.classList.add("answer-pop");
-  setTimeout(() => els.answerBox.classList.remove("answer-pop"), 180);
-
-  if (ok) {
-    correctCount++;
-    combo++;
-    playSE("OK");
-    spawnStar();
-    if (combo === 2) playSE("COMBO2");
-    if (combo === 3) playSE("COMBO3");
-    if (combo >= 4) playSE("COMBO4");
-  } else {
-    combo = 0;
-    wrongCount++;
-    playSE("NG");
-  }
-
-  if (challengeMode && wrongCount >= 3) {
-    return showResult("gameover");
-  }
-
-  score = Math.round((correctCount / totalQuestions) * 100);
-  els.score.textContent = score;
-
-  history.push({a,b,ans,user,ok});
-  feedback("", ok);
-  updateBuddy();
-  updateComboUI();
-  updateComboBgmSpeed();
-
-  // 採点中は一瞬キーパッド無効
-  setKeypadEnabled(false);
-
-  setTimeout(() => {
-    setKeypadEnabled(true);
-    if (idx < totalQuestions - 1) {
-      idx++;
-      updateUI();
-    } else {
-      showResult();
-    }
-  }, ok ? 700 : 900);
-};
-
-/* コンボ表示・BGM速度 */
-function updateComboUI() {
-  if (combo >= 2) {
-    els.comboBadge.textContent = combo + "コンボ！🔥";
-    els.comboBadge.classList.add("combo-show");
-    if (combo >= 10) els.comboBadge.classList.add("combo-hot");
-    else els.comboBadge.classList.remove("combo-hot");
-  } else {
-    els.comboBadge.classList.remove("combo-show","combo-hot");
-    els.comboBadge.textContent = "";
-  }
-}
-
-function updateComboBgmSpeed() {
-  const old = bgmSpeedFactor;
-  if (combo >= 8) bgmSpeedFactor = 0.6;
-  else if (combo >= 4) bgmSpeedFactor = 0.8;
-  else bgmSpeedFactor = 1.0;
-
-  if (old !== bgmSpeedFactor && bgmOn) {
-    startBGM();
-  }
-}
-
-/* フィードバック */
-function feedback(msg, ok) {
-  els.fx.className = "fx";
-  if (ok === true) {
-    els.fx.classList.add("ok");
-    els.fx.textContent = "✨ せいかい！";
-  } else if (ok === false) {
-    els.fx.classList.add("ng");
-    els.fx.textContent = "🪲 ざんねん！";
-  } else {
-    els.fx.textContent = msg || "";
-  }
-}
-
-/* 恐竜＆スキン（進化 C：🦎→🐊→🦖→🌋🦖🦕🌋） */
-function updateBuddy() {
-  const ratio = totalQuestions ? correctCount / totalQuestions : 0;
-  els.starFill.style.width = (ratio * 100) + "%";
-
-  // ステージ判定（1〜4）
-  let stage = 1;
-  if (ratio >= 0.75) stage = 4;
-  else if (ratio >= 0.5) stage = 3;
-  else if (ratio >= 0.25) stage = 2;
-
-  // 進化時アニメ
-  if (stage > lastStage) {
-    els.dinoEmoji.classList.add("dino-bounce");
-    playSE("LEVELUP");
-    setTimeout(() => els.dinoEmoji.classList.remove("dino-bounce"), 600);
-  }
-  lastStage = stage;
-
-  // 絵文字
-  let emoji = "🦎";
-  if (stage === 2) emoji = "🐊";
-  else if (stage === 3) emoji = "🦖";
-  else if (stage === 4) emoji = "🌋🦖🦕🌋";
-
-  els.dinoEmoji.textContent = emoji;
-  els.dinoName.textContent = `レベル ${stage}`;
-
-  // メッセージ
-  if (ratio === 1)      els.dinoMsg.textContent = "ぜんもんせいかい！きょうりゅうもびっくり！";
-  else if (ratio >= .8) els.dinoMsg.textContent = "あとちょっとでパーフェクト！";
-  else if (ratio >= .5) els.dinoMsg.textContent = "いいちょうし！このままつづけよう！";
-  else if (ratio > 0)   els.dinoMsg.textContent = "すこしずつできてきたよ！";
-  else                  els.dinoMsg.textContent = "がんばろう！";
-
-  // スキン（①②③④）
-  els.dinoArea.classList.remove("skin-forest","skin-desert","skin-volcano","skin-supervolcano");
-  if (stage === 1) els.dinoArea.classList.add("skin-forest");
-  else if (stage === 2) els.dinoArea.classList.add("skin-desert");
-  else if (stage === 3) els.dinoArea.classList.add("skin-volcano");
-  else els.dinoArea.classList.add("skin-supervolcano");
-}
-
-/* スター演出 */
-function spawnStar() {
-  const star = document.createElement("div");
-  star.textContent = "⭐";
-  star.className = "starburst";
-  document.body.appendChild(star);
-  setTimeout(() => star.remove(), 700);
-}
-
-/* 結果 */
-function showResult(reason = "") {
-  els.quizCard.classList.add("hidden");
-  els.resultCard.classList.remove("hidden");
-  stopTimer();
-
-  let medal = "";
-  if (score >= 95) medal = "🥇 金メダル！";
-  else if (score >= 80) medal = "🥈 銀メダル！";
-  else if (score >= 60) medal = "🥉 銅メダル！";
-  else medal = "💪 またチャレンジしよう！";
-
-  let msg = "";
-  if (reason === "timeup") {
-    msg = "じかんぎれ…でもここまでよくがんばったね！";
-  } else if (reason === "gameover") {
-    msg = "まちがいが3回になったよ。つぎはもっと気をつけてみよう！";
-  } else if (score === 100) {
-    msg = "ぜんもんせいかい！きょうりゅうも大よろこび！";
-  } else if (score >= 80) {
-    msg = "とてもいい点数！つぎは100点をめざそう！";
-  } else if (score >= 60) {
-    msg = "あとすこしで金メダル！もう一回やってみよう！";
-  } else {
-    msg = "すこしむずかしかったかな？きょうりゅうといっしょにれんしゅうしよう！";
-  }
-
-  if (reason === "timeup") els.finalScore.textContent = "じかんぎれ！";
-  else if (reason === "gameover") els.finalScore.textContent = "ゲームオーバー！";
-  else els.finalScore.textContent = score + "てん";
-
-  const historyHtml = history.map((h,i)=>
-    `Q${i+1}: ${h.a}×${h.b}=${h.ans} ／ あなた：<strong class="${h.ok?'ok':'ng'}">${h.user}</strong>`
-  ).join("<br>");
-
-  els.summaryList.innerHTML =
-    `<div class="medal">${medal}</div><p>${msg}</p><hr>` +
-    historyHtml;
-
-  playSE("RESULT");
-  if (score === 100 && typeof confetti === "function") {
-    confetti({particleCount:100,spread:70,origin:{y:0.7}});
-    setTimeout(()=>confetti({particleCount:80,spread:100,origin:{y:0.5}}),400);
-  }
-}
-
-/* 九九表 */
-function openKukuModal() {
-  buildKukuGrid();
-  els.tableModal.classList.remove("hidden");
-}
-els.showTableBtn.onclick = openKukuModal;
-els.closeModal.onclick = () => els.tableModal.classList.add("hidden");
-els.tableModal.querySelector(".modal-backdrop").onclick =
-  () => els.tableModal.classList.add("hidden");
-
-function buildKukuGrid() {
-  let html = `<table class="kuku-table"><thead><tr><th class="hd">×</th>`;
-  for (let j=1;j<=9;j++) html += `<th class="hd">${j}</th>`;
-  html += `</tr></thead><tbody>`;
-  for (let i=1;i<=9;i++) {
-    html += `<tr><th class="hd">${i}</th>`;
-    for (let j=1;j<=9;j++) {
-      html += `<td class="expr">${j}×${i}=${i*j}</td>`;
-    }
-    html += `</tr>`;
-  }
-  html += `</tbody></table>`;
-  els.kukuGrid.innerHTML = html;
-}
-
-/* 難易度切替 */
-modeBtns.forEach(btn => {
-  btn.onclick = () => {
-    initAudio();
-    modeBtns.forEach(b=>b.classList.remove("active"));
-    btn.classList.add("active");
-
-    const n = Number(btn.dataset.qcount);
-    totalQuestions = n;
-    document.body.classList.remove("bg-easy","bg-normal","bg-hard");
-
-    if (n === 10) {
-      currentBgm = "easy"; challengeMode = false;
-      document.body.classList.add("bg-easy");
-    } else if (n === 20) {
-      currentBgm = "normal"; challengeMode = false;
-      document.body.classList.add("bg-normal");
-    } else {
-      currentBgm = "hard"; challengeMode = true;
-      document.body.classList.add("bg-hard");
-    }
-
-    if (bgmOn) startBGM();
-    makeQuiz();
-  };
-});
-
-/* BGMトグル（アイコン＋色） */
-els.bgmToggle.onclick = () => {
-  initAudio();
-  if (!AC || !bgmGain) return;
-  if (!bgmOn) {
-    startBGM();
-    els.bgmToggle.textContent = "🔊";
-    els.bgmToggle.classList.add("bgm-on");
-    els.bgmToggle.classList.remove("bgm-off");
-  } else {
-    stopBGM();
-    els.bgmToggle.textContent = "🔇";
-    els.bgmToggle.classList.add("bgm-off");
-    els.bgmToggle.classList.remove("bgm-on");
-  }
-};
-
-/* 結果画面のボタン */
-els.againBtn.onclick = () => {
-  initAudio();
-  els.resultCard.classList.add("hidden");
-  els.quizCard.classList.remove("hidden");
-  makeQuiz();
-};
-
-els.restartBtn.onclick = () => {
-  initAudio();
-  modeBtns.forEach(b=>b.classList.remove("active"));
-  const easyBtn = [...modeBtns].find(b=>b.dataset.qcount==="10");
-  if (easyBtn) easyBtn.classList.add("active");
-  totalQuestions = 10;
-  currentBgm = "easy";
-  challengeMode = false;
-  document.body.classList.remove("bg-easy","bg-normal","bg-hard");
-  document.body.classList.add("bg-easy");
-  if (bgmOn) startBGM();
-  els.resultCard.classList.add("hidden");
-  els.quizCard.classList.remove("hidden");
-  makeQuiz();
-};
-
-/* 初期化 */
-els.bgmToggle.textContent = "🔇";
-els.bgmToggle.classList.add("bgm-off");
-makeQuiz();
+  bg
