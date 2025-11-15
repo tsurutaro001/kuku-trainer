@@ -4,10 +4,11 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>かけざん れんしゅう</title>
-  <link rel="stylesheet" href="./styles.css?v=8.2" />
+  <link rel="stylesheet" href="./styles.css?v=8.3" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.9.3/confetti.min.js" defer></script>
-  <script src="./app.js?v=8.2" type="module" defer></script>
+  <script src="./app.js?v=8.3" defer></script>
 </head>
+
 <body>
   <header class="app-header">
     <div class="hdr-left">
@@ -24,9 +25,9 @@
     <section class="mode-bar">
       <span class="mode-label">もんだい数：</span>
       <div class="mode-buttons">
-        <button class="mode-btn" data-q-count="10">10問</button>
-        <button class="mode-btn active" data-q-count="20">20問</button>
-        <button class="mode-btn" data-q-count="30">30問</button>
+        <button class="mode-btn active" data-qcount="20">20問</button>
+        <button class="mode-btn" data-qcount="10">10問</button>
+        <button class="mode-btn" data-qcount="30">30問</button>
       </div>
     </section>
 
@@ -35,7 +36,7 @@
       <div>スコア <span id="score">0</span> / 100</div>
     </section>
 
-    <!-- 恐竜＆スターゲージ -->
+    <!-- 恐竜バー -->
     <section class="buddy-bar">
       <div class="buddy">
         <div id="dinoEmoji" class="dino">🦕</div>
@@ -64,12 +65,11 @@
         </div>
       </div>
 
-      <!-- キーパッド -->
       <div class="pad">
         <div class="pad-grid">
-          <button class="key">7</button><button class="key">8</button><button class="key">9</button>
-          <button class="key">4</button><button class="key">5</button><button class="key">6</button>
-          <button class="key">1</button><button class="key">2</button><button class="key">3</button>
+          <button class="key">7</button> <button class="key">8</button> <button class="key">9</button>
+          <button class="key">4</button> <button class="key">5</button> <button class="key">6</button>
+          <button class="key">1</button> <button class="key">2</button> <button class="key">3</button>
           <button class="key wide">0</button>
           <button id="keyBk" class="key">⌫</button>
           <button id="keyClr" class="key danger">クリア</button>
@@ -93,11 +93,11 @@
     </section>
   </main>
 
-  <!-- 九九表モーダル（列×行：上=段, 左=かける数） -->
+  <!-- 九九表 -->
   <div id="tableModal" class="modal hidden" aria-hidden="true">
     <div class="modal-backdrop"></div>
-    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-      <h3 id="modalTitle">かけ算九九（1〜9）</h3>
+    <div class="modal-content">
+      <h3>かけ算九九（1〜9）</h3>
       <div id="kukuGrid" class="kuku-grid"></div>
       <button id="closeModal" class="btn primary block">とじる</button>
     </div>
