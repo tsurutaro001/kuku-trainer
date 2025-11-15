@@ -4,14 +4,14 @@
   <meta charset="UTF-8">
   <title>かけざん れんしゅう</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-easy">
   <div id="app">
     <!-- タイトル -->
     <h1 class="title">かけざん れんしゅう</h1>
 
-    <!-- 難易度 + BGM アイコン -->
+    <!-- 難易度 + BGM -->
     <div class="top-controls">
       <div class="mode-select">
         <button class="mode-btn active" data-qcount="10">やさしい</button>
@@ -21,14 +21,14 @@
       <button id="bgmToggle" aria-label="BGM 切り替え">🔇</button>
     </div>
 
-    <!-- タイマー（ちょうせんモード用） -->
+    <!-- タイマー（ちょうせん用） -->
     <div id="timeDisplay" class="hidden"></div>
 
     <!-- 問題カード -->
     <div id="quizCard" class="card">
       <div class="status-line">
         <span id="qNo">1</span> / <span id="qTotal">10</span>
-        &nbsp;｜&nbsp;スコア：<span id="score">0</span>
+        ｜ スコア：<span id="score">0</span>
       </div>
 
       <div class="problem">
@@ -39,7 +39,7 @@
         <span id="answerBox">□</span>
       </div>
 
-      <!-- コンボ表示 -->
+      <!-- コンボバッジ -->
       <div id="comboBadge"></div>
 
       <!-- 正解／不正解メッセージ -->
@@ -65,11 +65,11 @@
       <button id="submitBtn">こたえあわせ</button>
 
       <!-- 恐竜エリア -->
-      <div class="dino-area">
-        <span id="dinoEmoji">🦕</span>
-        <div id="dinoName">きょうりゅうレベル 1</div>
+      <div class="dino-area skin-forest" id="dinoArea">
+        <div class="dino-label">きょうりゅう</div>
+        <span id="dinoEmoji">🦎</span>
+        <div id="dinoName">レベル 1</div>
         <div id="dinoMsg">がんばろう！</div>
-        <!-- レベルメーター -->
         <div class="star-bar">
           <div id="starFill"></div>
         </div>
@@ -99,7 +99,7 @@
       <div class="modal-content">
         <h3>かけ算九九（1〜9）</h3>
         <div id="kukuGrid"></div>
-        <div style="margin-top: 10px;">
+        <div style="margin-top: 10px; text-align:center;">
           <button id="closeModal">とじる</button>
         </div>
       </div>
