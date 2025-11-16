@@ -707,7 +707,12 @@ function buildKukuGrid() {
   for (let i = 1; i <= 9; i++) {
     html += `<tr><th class="hd">${i}</th>`;
     for (let j = 1; j <= 9; j++) {
-      html += `<td class="expr">${j}×${i}=${i * j}</td>`;
+      const ans = i * j;
+      html += `
+        <td class="expr">
+          <span class="expr-main">${j}×${i}</span>
+          <span class="expr-sub">=${ans}</span>
+        </td>`;
     }
     html += `</tr>`;
   }
