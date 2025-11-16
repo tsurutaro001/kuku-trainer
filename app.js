@@ -81,7 +81,12 @@ function playSE(type) {
       return;
 
     case "COMBO4":
-      osc.type = "sawtooth
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(800, AC.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(2000, AC.currentTime + 0.26);
+      gain.gain.value = 0.28;
+      end(0.26);
+      return;
 
     case "LEVELUP":
       osc.type = "square";
@@ -89,15 +94,6 @@ function playSE(type) {
       osc.frequency.linearRampToValueAtTime(1200, AC.currentTime + 0.25);
       gain.gain.value = 0.25;
       end(0.25);
-      return;
-
-    case "RESULT":
-      osc.type = "square";
-      osc.frequency.setValueAtTime(800, AC.currentTime);
-      osc.frequency.linearRampToValueAtTime(1200, AC.currentTime + 0.12);
-      osc.frequency.linearRampToValueAtTime(900, AC.currentTime + 0.24);
-      gain.gain.value = 0.25;
-      end(0.28);
       return;
 
     case "DINO": // きょうりゅうタップ
@@ -108,14 +104,29 @@ function playSE(type) {
       end(0.20);
       return;
 
-    case "ROAR": // 伝説のドラゴン咆哮
+    case "ROAR": { // 伝説のドラゴン咆哮（BGMを一瞬だけ小さくして目立たせる）
+      if (bgmGain && AC) {
+        const base =
+          currentBgm === "night"
+            ? 2.0 // 夜モードのベースボリューム
+            : 1.0; // 通常モード
+        const now = AC.currentTime;
+        bgmGain.gain.setValueAtTime(base * 0.3, now);
+        bgmGain.gain.linearRampToValueAtTime(base, now + 0.6);
+      }
+
       osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(220, AC.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(80, AC.currentTime + 0.45);
-      gain.gain.setValueAtTime(0.5, AC.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.05, AC.currentTime + 0.45);
+      const now = AC.currentTime;
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.exponentialRampToValueAtTime(90, now + 0.35);
+      osc.frequency.exponentialRampToValueAtTime(130, now + 0.5);
+
+      gain.gain.setValueAtTime(0.8, now);
+      gain.gain.exponentialRampToValueAtTime(0.08, now + 0.5);
+
       end(0.5);
       return;
+    }
   }
 }
 
@@ -306,7 +317,7 @@ function stopBGM() {
 }
 
 /* -----------------------------------------------------
-   1小節分をスケジュール
+   1小節分をスケジュール（夜モードはエンベロープ付き）
 ----------------------------------------------------- */
 function scheduleBgmBar() {
   if (!AC || !bgmOn || !bgmGain) return;
@@ -332,7 +343,23 @@ function scheduleBgmBar() {
       o.connect(g); g.connect(bgmGain);
       o.type = (currentBgm === "night" ? "triangle" : "square");
       o.frequency.setValueAtTime(n.freq, tMel);
-      g.gain.value = (currentBgm === "night" ? 0.15 : 0.07);
+
+      const baseAmp = (currentBgm === "night" ? 0.12 : 0.07);
+
+      if (currentBgm === "night") {
+        const attack = Math.min(0.02, len / 4);
+        const release = Math.min(0.02, len / 4);
+        const sustainStart = tMel + attack;
+        const sustainEnd   = tMel + len - release;
+
+        g.gain.setValueAtTime(0.0001, tMel);
+        g.gain.linearRampToValueAtTime(baseAmp, sustainStart);
+        g.gain.setValueAtTime(baseAmp, sustainEnd);
+        g.gain.linearRampToValueAtTime(0.0001, tMel + len);
+      } else {
+        g.gain.setValueAtTime(baseAmp, tMel);
+      }
+
       o.start(tMel);
       o.stop(tMel + len);
       bgmNodes.push(o);
@@ -348,7 +375,23 @@ function scheduleBgmBar() {
       o.connect(g); g.connect(bgmGain);
       o.type = (currentBgm === "night" ? "sine" : "square");
       o.frequency.setValueAtTime(n.freq, tBass);
-      g.gain.value = (currentBgm === "night" ? 0.10 : 0.04);
+
+      const baseAmp = (currentBgm === "night" ? 0.10 : 0.04);
+
+      if (currentBgm === "night") {
+        const attack = Math.min(0.02, len / 4);
+        const release = Math.min(0.02, len / 4);
+        const sustainStart = tBass + attack;
+        const sustainEnd   = tBass + len - release;
+
+        g.gain.setValueAtTime(0.0001, tBass);
+        g.gain.linearRampToValueAtTime(baseAmp, sustainStart);
+        g.gain.setValueAtTime(baseAmp, sustainEnd);
+        g.gain.linearRampToValueAtTime(0.0001, tBass + len);
+      } else {
+        g.gain.setValueAtTime(baseAmp, tBass);
+      }
+
       o.start(tBass);
       o.stop(tBass + len);
       bgmNodes.push(o);
@@ -360,7 +403,7 @@ function scheduleBgmBar() {
 }
 
 /* -----------------------------------------------------
-   BGM 開始
+   BGM 開始（夜モードは音量2.0）
 ----------------------------------------------------- */
 function startBGM() {
   initAudio();
@@ -369,7 +412,6 @@ function startBGM() {
   const doStart = () => {
     stopBGM();
     bgmOn = true;
-    // 夜モードだけ音量アップ（2.0）
     bgmGain.gain.value = (currentBgm === "night" ? 2.0 : 1.0);
     bgmSectionIndex = 0;
 
@@ -524,10 +566,38 @@ function runChallengeCountdown() {
   }, 1000);
 }
 
+/* 夜モード開始前のカウントダウン（90秒用） */
+function runNightCountdown() {
+  stopTimer();
+  let count = 3;
+  els.timeDisplay.classList.remove("hidden");
+  els.timeDisplay.classList.add("countdown");
+  els.timeDisplay.textContent = count;
+  setKeypadEnabled(false);
+  els.submitBtn.disabled = true;
+
+  const timer = setInterval(() => {
+    count--;
+    if (count > 0) {
+      els.timeDisplay.textContent = count;
+    } else {
+      clearInterval(timer);
+      els.timeDisplay.textContent = "すたーと！";
+      playSE("OK");
+      setTimeout(() => {
+        els.timeDisplay.classList.remove("countdown");
+        setKeypadEnabled(true);
+        els.submitBtn.disabled = false;
+        startTimer(90); // 夜モードは90秒
+      }, 600);
+    }
+  }, 1000);
+}
+
 /* -----------------------------------------------------
    問題生成
    通常：1〜9×1〜9
-   夜モード：10〜19×1〜9
+   夜モード：10〜19×1〜9（ただし問題数は常に30問）
 ----------------------------------------------------- */
 function makeQuiz() {
   const all = [];
@@ -1079,8 +1149,7 @@ els.againBtn.onclick = () => {
   if (challengeMode) {
     runChallengeCountdown();
   } else if (nightMode) {
-    // 夜モードは90秒タイマー
-    startTimer(90);
+    runNightCountdown(); // 夜モードもカウントダウン→90秒
   }
 };
 
@@ -1124,7 +1193,8 @@ function fullResetToEasy() {
 
 /* -----------------------------------------------------
    夜モード切り替え（タイトル長押し）
-   - ON時：難易度ボタン無効化＋90秒タイマー
+   - ON時：問題数は常に30問固定
+   - ON時：難易度ボタン無効化＋カウントダウン→90秒タイマー
 ----------------------------------------------------- */
 function toggleNightMode() {
   nightMode = !nightMode;
@@ -1134,8 +1204,10 @@ function toggleNightMode() {
     document.body.classList.add("night-mode");
     currentBgm = "night";
 
-    // ちょうせん中ならタイマー停止＆非表示
+    // 夜モードはいつでも30問固定
+    totalQuestions = 30;
     challengeMode = false;
+
     stopTimer();
     els.timeDisplay.classList.add("hidden");
     els.timeDisplay.textContent = "";
@@ -1146,10 +1218,16 @@ function toggleNightMode() {
     if (bgmOn) startBGM();
     makeQuiz();
     updateBuddy();
-    // 夜モードは90秒カウント
-    startTimer(90);
+
+    // 夜モードはカウントダウン→90秒
+    runNightCountdown();
   } else {
     document.body.classList.remove("night-mode");
+
+    stopTimer();
+    els.timeDisplay.classList.add("hidden");
+    els.timeDisplay.textContent = "";
+
     // 難易度ボタン再有効化
     enableModes();
 
