@@ -1,6 +1,6 @@
 /* =====================================================
    app.js
-   九九練習アプリ：BGM / きょうりゅう / コンボ / ちょうむず
+   九九練習アプリ：BGM / きょうりゅう / コンボ / 夜モード
 ===================================================== */
 
 let AC = null;
@@ -12,8 +12,8 @@ let currentBgm = "easy"; // "easy" | "normal" | "hard" | "night"
 let bgmSpeedFactor = 1.0;
 let bgmSectionIndex = 0;
 
-let nightMode = false;   // タイトル長押しで ON（ちょうむず）
-let rainbowFlag = false;
+let nightMode = false;      // タイトル長押しでON（ちょうむず）
+let legendaryFlag = false;  // 10コンボ以上で伝説ドラゴン
 
 /* -----------------------------------------------------
    Audio 初期化
@@ -308,10 +308,10 @@ function scheduleBgmBar() {
   if (!AC || !bgmOn || !bgmGain) return;
 
   let SECT;
-  if (currentBgm === "easy")   SECT = BGM_EASY;
+  if (currentBgm === "easy")      SECT = BGM_EASY;
   else if (currentBgm === "normal") SECT = BGM_NORMAL;
   else if (currentBgm === "hard")   SECT = BGM_HARD;
-  else                             SECT = BGM_NIGHT;
+  else                              SECT = BGM_NIGHT;
 
   const s = SECT[bgmSectionIndex % SECT.length];
   const MELODY = s.melody;
@@ -365,14 +365,15 @@ function startBGM() {
   const doStart = () => {
     stopBGM();
     bgmOn = true;
-    bgmGain.gain.value = 1.0;
+    // 夜モードだけ音量アップ
+    bgmGain.gain.value = (currentBgm === "night" ? 1.4 : 1.0);
     bgmSectionIndex = 0;
 
     let SECT;
-    if (currentBgm === "easy")   SECT = BGM_EASY;
+    if (currentBgm === "easy")      SECT = BGM_EASY;
     else if (currentBgm === "normal") SECT = BGM_NORMAL;
     else if (currentBgm === "hard")   SECT = BGM_HARD;
-    else                             SECT = BGM_NIGHT;
+    else                              SECT = BGM_NIGHT;
 
     const barSec = SECT[0].melody.reduce(
       (s, n) => s + n.len * bgmSpeedFactor,
@@ -394,7 +395,13 @@ function startBGM() {
 document.addEventListener("visibilitychange", () => {
   if (!AC || !bgmGain) return;
   if (document.visibilityState === "visible") {
-    if (bgmOn) startBGM();
+    if (bgmOn) {
+      if (AC.state === "suspended") {
+        AC.resume().then(startBGM);
+      } else {
+        startBGM();
+      }
+    }
   } else {
     if (bgmOn) stopBGM();
   }
@@ -513,7 +520,7 @@ function runChallengeCountdown() {
 /* -----------------------------------------------------
    問題生成
    通常：1〜9×1〜9
-   夜モード（ちょうむず）：10〜19×1〜9
+   夜モード：10〜19×1〜9
 ----------------------------------------------------- */
 function makeQuiz() {
   const all = [];
@@ -541,13 +548,14 @@ function makeQuiz() {
   currentInput = "";
   answerHistory = [];
   lastStage = 1;
-  rainbowFlag = false;
+  legendaryFlag = false;
 
   bgmSpeedFactor = 1.0;
   if (bgmOn) startBGM();
 
   stopTimer();
   els.timeDisplay.classList.add("hidden");
+  els.timeDisplay.textContent = "";
 
   els.qTotal.textContent = totalQuestions;
   updateUI();
@@ -566,7 +574,6 @@ function updateUI() {
   els.right.textContent = quiz[idx][1];
   els.score.textContent = score;
   currentInput = "";
-  rainbowFlag = false;
   renderAnswer();
   feedback("");
 }
@@ -645,6 +652,7 @@ els.submitBtn.onclick = () => {
   } else {
     combo = 0;
     wrongCount++;
+    legendaryFlag = false; // ドラゴン終了
     playSE("NG");
   }
 
@@ -684,27 +692,23 @@ function updateComboUI() {
 
   if (combo >= 2) {
     badge.classList.remove("combo-show", "combo-hot");
-    void badge.offsetWidth; // 再トリガー
+    void badge.offsetWidth;
 
     badge.textContent = `${combo}コンボ！🔥`;
     if (combo >= 10) badge.classList.add("combo-hot");
     badge.classList.add("combo-show");
 
-    if (combo >= 10 && !rainbowFlag) {
-      rainbowFlag = true;
-      els.dinoEmoji.textContent = "🌈🦖";
-      els.dinoMsg.textContent = "スーパーれんしゅうタイム！";
-      els.starFill.style.background =
-        "linear-gradient(90deg, #f97316, #eab308, #22c55e, #3b82f6, #a855f7)";
-      setTimeout(() => {
-        els.starFill.style.background =
-          "linear-gradient(90deg, #ffeb8b, #ffcc00)";
-        updateBuddy();
-      }, 1200);
+    if (combo >= 10 && !legendaryFlag) {
+      legendaryFlag = true;
+      updateBuddy(); // ドラゴン発動
     }
   } else {
     badge.classList.remove("combo-show", "combo-hot");
     badge.textContent = "";
+    if (legendaryFlag) {
+      legendaryFlag = false;
+      updateBuddy(); // ドラゴン解除
+    }
   }
 }
 
@@ -734,7 +738,7 @@ function feedback(msg, ok) {
 }
 
 /* -----------------------------------------------------
-   きょうりゅうエリア
+   きょうりゅうエリア（伝説ドラゴン対応）
 ----------------------------------------------------- */
 function updateBuddy() {
   const ratio = totalQuestions ? correctCount / totalQuestions : 0;
@@ -745,7 +749,7 @@ function updateBuddy() {
   else if (ratio >= 0.5) stage = 3;
   else if (ratio >= 0.25) stage = 2;
 
-  if (stage > lastStage) {
+  if (stage > lastStage && !legendaryFlag) {
     els.dinoEmoji.classList.add("dino-bounce");
     playSE("LEVELUP");
     setTimeout(
@@ -755,27 +759,7 @@ function updateBuddy() {
   }
   lastStage = stage;
 
-  let emoji = "🦎";
-  if (stage === 2) emoji = "🐊";
-  else if (stage === 3) emoji = "🦖";
-  else if (stage === 4) emoji = "🌋🦖🦕🌋";
-  if (nightMode) emoji = "🌙🦖";
-
-  els.dinoEmoji.textContent = emoji;
-  els.dinoName.textContent = `レベル ${stage}`;
-
-  if (ratio === 1) {
-    els.dinoMsg.textContent = "ぜんもんせいかい！きょうりゅうもびっくり！";
-  } else if (ratio >= 0.8) {
-    els.dinoMsg.textContent = "とてもいい！つぎは100点をめざそう！";
-  } else if (ratio >= 0.5) {
-    els.dinoMsg.textContent = "いいちょうし！このままつづけよう！";
-  } else if (ratio > 0) {
-    els.dinoMsg.textContent = "すこしずつできてきたよ！";
-  } else {
-    els.dinoMsg.textContent = "がんばろう！";
-  }
-
+  // 背景スキン
   els.dinoArea.classList.remove(
     "skin-forest",
     "skin-desert",
@@ -786,6 +770,39 @@ function updateBuddy() {
   else if (stage === 2) els.dinoArea.classList.add("skin-desert");
   else if (stage === 3) els.dinoArea.classList.add("skin-volcano");
   else els.dinoArea.classList.add("skin-super");
+
+  // ゲージ色＆表示
+  if (legendaryFlag) {
+    els.starFill.style.background =
+      "linear-gradient(90deg, #f97316, #eab308, #22c55e, #3b82f6, #a855f7)";
+    els.dinoEmoji.textContent = "🐉🔥⚡";
+    els.dinoName.textContent = "でんせつのドラゴン";
+    els.dinoMsg.textContent = "でんせつのドラゴンとうじょう！！";
+  } else {
+    els.starFill.style.background =
+      "linear-gradient(90deg, #ffeb8b, #ffcc00)";
+
+    let emoji = "🦎";
+    if (stage === 2) emoji = "🐊";
+    else if (stage === 3) emoji = "🦖";
+    else if (stage === 4) emoji = "🌋🦖🦕🌋";
+    if (nightMode) emoji = "🌙🦖";
+
+    els.dinoEmoji.textContent = emoji;
+    els.dinoName.textContent = `レベル ${stage}`;
+
+    if (ratio === 1) {
+      els.dinoMsg.textContent = "ぜんもんせいかい！きょうりゅうもびっくり！";
+    } else if (ratio >= 0.8) {
+      els.dinoMsg.textContent = "とてもいい！つぎは100点をめざそう！";
+    } else if (ratio >= 0.5) {
+      els.dinoMsg.textContent = "いいちょうし！このままつづけよう！";
+    } else if (ratio > 0) {
+      els.dinoMsg.textContent = "すこしずつできてきたよ！";
+    } else {
+      els.dinoMsg.textContent = "がんばろう！";
+    }
+  }
 }
 
 /* きょうりゅうタップ：ジャンプ＋効果音 */
@@ -821,6 +838,8 @@ function showResult(reason = "") {
   els.quizCard.classList.add("hidden");
   els.resultCard.classList.remove("hidden");
   stopTimer();
+  els.timeDisplay.classList.add("hidden");
+  els.timeDisplay.textContent = "";
 
   modeBtns.forEach((b) => b.classList.add("disabled"));
 
@@ -969,16 +988,13 @@ function buildKukuGrid() {
 }
 
 /* -----------------------------------------------------
-   難易度切り替え（押したら夜モード解除）
+   難易度切り替え（夜モード中は無効）
 ----------------------------------------------------- */
 modeBtns.forEach((btn) => {
   btn.onclick = () => {
     initAudio();
     if (btn.classList.contains("disabled")) return;
-
-    // 夜モード解除（通常モードへ戻す）
-    nightMode = false;
-    document.body.classList.remove("night-mode");
+    if (nightMode) return; // 夜モード中は変更不可
 
     modeBtns.forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
@@ -1008,17 +1024,24 @@ modeBtns.forEach((btn) => {
 });
 
 /* -----------------------------------------------------
-   BGM ON/OFF トグル
+   BGM ON/OFF トグル（resumeを確実に）
 ----------------------------------------------------- */
 els.bgmToggle.onclick = () => {
   initAudio();
   if (!AC || !bgmGain) return;
 
   if (!bgmOn) {
-    startBGM();
-    els.bgmToggle.textContent = "🔊";
-    els.bgmToggle.classList.add("bgm-on");
-    els.bgmToggle.classList.remove("bgm-off");
+    const doPlay = () => {
+      startBGM();
+      els.bgmToggle.textContent = "🔊";
+      els.bgmToggle.classList.add("bgm-on");
+      els.bgmToggle.classList.remove("bgm-off");
+    };
+    if (AC.state === "suspended") {
+      AC.resume().then(doPlay);
+    } else {
+      doPlay();
+    }
   } else {
     stopBGM();
     els.bgmToggle.textContent = "🔇";
@@ -1036,7 +1059,7 @@ function enableModes() {
 
 els.againBtn.onclick = () => {
   initAudio();
-  enableModes();
+  if (!nightMode) enableModes(); // 夜モード中は無効のまま
   els.resultCard.classList.add("hidden");
   els.quizCard.classList.remove("hidden");
   makeQuiz();
@@ -1052,11 +1075,15 @@ els.restartBtn.onclick = () => {
    完全リセット（やさしい＋通常モードに戻す）
 ----------------------------------------------------- */
 function fullResetToEasy() {
-  enableModes();
+  stopTimer();
+  els.timeDisplay.classList.add("hidden");
+  els.timeDisplay.textContent = "";
 
-  // 夜モード解除
   nightMode = false;
+  legendaryFlag = false;
   document.body.classList.remove("night-mode");
+
+  enableModes();
 
   modeBtns.forEach((b) => b.classList.remove("active"));
   const easyBtn = [...modeBtns].find(
@@ -1079,19 +1106,35 @@ function fullResetToEasy() {
 
 /* -----------------------------------------------------
    夜モード切り替え（タイトル長押し）
+   - ON時：難易度ボタン無効化＋タイマー停止
 ----------------------------------------------------- */
 function toggleNightMode() {
   nightMode = !nightMode;
+  legendaryFlag = false;
+
   if (nightMode) {
     document.body.classList.add("night-mode");
     currentBgm = "night";
+
+    // ちょうせん中ならタイマー停止＆非表示
+    challengeMode = false;
+    stopTimer();
+    els.timeDisplay.classList.add("hidden");
+    els.timeDisplay.textContent = "";
+
+    // 難易度ボタン無効化
+    modeBtns.forEach((b) => b.classList.add("disabled"));
   } else {
     document.body.classList.remove("night-mode");
-    // 現在の問題数から通常BGMに戻す
+    // 難易度ボタン再有効化
+    enableModes();
+
+    // 現在の問題数に応じて通常BGMへ
     if (totalQuestions === 10) currentBgm = "easy";
     else if (totalQuestions === 20) currentBgm = "normal";
     else currentBgm = "hard";
   }
+
   if (bgmOn) startBGM();
   makeQuiz();
   updateBuddy();
@@ -1108,11 +1151,11 @@ function toggleNightMode() {
     if (pressTimer) clearTimeout(pressTimer);
     pressTimer = setTimeout(() => {
       longPressed = true;
-      toggleNightMode(); // ちょうむずON/OFF
-    }, 900); // 0.9秒以上で長押し扱い
+      toggleNightMode(); // 夜モードON/OFF
+    }, 900); // 0.9秒以上で長押し
   };
 
-  const end = (e) => {
+  const end = () => {
     if (pressTimer) {
       clearTimeout(pressTimer);
       pressTimer = null;
