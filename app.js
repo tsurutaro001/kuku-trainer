@@ -10,6 +10,10 @@ let bgmGain = null;
 let currentBgm = "easy";
 let bgmSpeedFactor = 1.0;
 let bgmNodes = [];
+let bgmSectionIndex = 0; // その難易度の中で、どのセクションを再生するか
+
+let nightMode = false;   // タイトル長押しで切り替え
+let rainbowFlag = false; // 10コンボ時の虹きょうりゅう演出
 
 /* -----------------------------------------------------
    Audio / BGM 初期化
@@ -97,102 +101,180 @@ function playSE(type) {
 }
 
 /* -----------------------------------------------------
-   BGM パターン（A→B の2小節構成）
+   BGM パターン（各難易度 3 セクション）
 ----------------------------------------------------- */
-/* やさしい：明るい感じ */
-const BGM_EASY_MELODY = [
-  // A
-  { freq: 523.25, len: 0.25 },
-  { freq: 587.33, len: 0.25 },
-  { freq: 659.25, len: 0.25 },
-  { freq: 783.99, len: 0.25 },
-  { freq: 659.25, len: 0.25 },
-  { freq: 587.33, len: 0.25 },
-  { freq: 523.25, len: 0.25 },
-  { freq: 0,      len: 0.25 },
-  // B
-  { freq: 587.33, len: 0.25 },
-  { freq: 659.25, len: 0.25 },
-  { freq: 783.99, len: 0.25 },
-  { freq: 880.00, len: 0.25 },
-  { freq: 783.99, len: 0.25 },
-  { freq: 659.25, len: 0.25 },
-  { freq: 587.33, len: 0.25 },
-  { freq: 0,      len: 0.25 }
-];
-const BGM_EASY_BASS = [
-  { freq: 130.81, len: 0.5 },
-  { freq: 0,      len: 0.25 },
-  { freq: 98.00,  len: 0.5 },
-  { freq: 0,      len: 0.25 },
-  { freq: 146.83, len: 0.5 },
-  { freq: 0,      len: 0.25 },
-  { freq: 98.00,  len: 0.5 },
-  { freq: 0,      len: 0.25 }
-];
-
-/* ふつう：少し疾走感 */
-const BGM_NORMAL_MELODY = [
-  // A
-  { freq: 659.25, len: 0.20 },
-  { freq: 783.99, len: 0.20 },
-  { freq: 987.77, len: 0.20 },
-  { freq: 1046.5, len: 0.20 },
-  { freq: 987.77, len: 0.20 },
-  { freq: 783.99, len: 0.20 },
-  { freq: 659.25, len: 0.20 },
-  { freq: 0,      len: 0.20 },
-  // B
-  { freq: 523.25, len: 0.20 },
-  { freq: 587.33, len: 0.20 },
-  { freq: 659.25, len: 0.20 },
-  { freq: 783.99, len: 0.20 },
-  { freq: 659.25, len: 0.20 },
-  { freq: 587.33, len: 0.20 },
-  { freq: 523.25, len: 0.20 },
-  { freq: 0,      len: 0.20 }
-];
-const BGM_NORMAL_BASS = [
-  { freq: 130.81, len: 0.40 },
-  { freq: 0,      len: 0.10 },
-  { freq: 196.00, len: 0.40 },
-  { freq: 0,      len: 0.10 },
-  { freq: 146.83, len: 0.40 },
-  { freq: 0,      len: 0.10 },
-  { freq: 196.00, len: 0.40 },
-  { freq: 0,      len: 0.10 }
+// やさしい：E1（導入）E2（ちょっと盛り上がり）E3（落ち着く）
+const BGM_EASY_SECTIONS = [
+  {
+    melody: [
+      { freq: 523.25, len: 0.25 },
+      { freq: 587.33, len: 0.25 },
+      { freq: 659.25, len: 0.25 },
+      { freq: 783.99, len: 0.25 },
+      { freq: 659.25, len: 0.25 },
+      { freq: 587.33, len: 0.25 },
+      { freq: 523.25, len: 0.25 },
+      { freq: 0,      len: 0.25 }
+    ],
+    bass: [
+      { freq: 130.81, len: 0.5 },
+      { freq: 0,      len: 0.25 },
+      { freq: 98.00,  len: 0.5 },
+      { freq: 0,      len: 0.25 }
+    ]
+  },
+  {
+    melody: [
+      { freq: 587.33, len: 0.25 },
+      { freq: 659.25, len: 0.25 },
+      { freq: 783.99, len: 0.25 },
+      { freq: 880.00, len: 0.25 },
+      { freq: 783.99, len: 0.25 },
+      { freq: 659.25, len: 0.25 },
+      { freq: 587.33, len: 0.25 },
+      { freq: 0,      len: 0.25 }
+    ],
+    bass: [
+      { freq: 98.00,  len: 0.5 },
+      { freq: 0,      len: 0.25 },
+      { freq: 146.83, len: 0.5 },
+      { freq: 0,      len: 0.25 }
+    ]
+  },
+  {
+    melody: [
+      { freq: 659.25, len: 0.25 },
+      { freq: 523.25, len: 0.25 },
+      { freq: 587.33, len: 0.25 },
+      { freq: 659.25, len: 0.25 },
+      { freq: 587.33, len: 0.25 },
+      { freq: 523.25, len: 0.25 },
+      { freq: 440.00, len: 0.25 },
+      { freq: 0,      len: 0.25 }
+    ],
+    bass: [
+      { freq: 130.81, len: 0.5 },
+      { freq: 0,      len: 0.25 },
+      { freq: 130.81, len: 0.5 },
+      { freq: 0,      len: 0.25 }
+    ]
+  }
 ];
 
-/* ちょうせん：緊張感のある展開 */
-const BGM_HARD_MELODY = [
-  // A
-  { freq: 440.00, len: 0.15 },
-  { freq: 523.25, len: 0.15 },
-  { freq: 587.33, len: 0.15 },
-  { freq: 659.25, len: 0.15 },
-  { freq: 587.33, len: 0.15 },
-  { freq: 523.25, len: 0.15 },
-  { freq: 440.00, len: 0.15 },
-  { freq: 0,      len: 0.15 },
-  // B
-  { freq: 659.25, len: 0.15 },
-  { freq: 698.46, len: 0.15 },
-  { freq: 880.00, len: 0.15 },
-  { freq: 987.77, len: 0.15 },
-  { freq: 880.00, len: 0.15 },
-  { freq: 698.46, len: 0.15 },
-  { freq: 659.25, len: 0.15 },
-  { freq: 0,      len: 0.15 }
+// ふつう：N1, N2, N3
+const BGM_NORMAL_SECTIONS = [
+  {
+    melody: [
+      { freq: 659.25, len: 0.20 },
+      { freq: 783.99, len: 0.20 },
+      { freq: 987.77, len: 0.20 },
+      { freq: 1046.5, len: 0.20 },
+      { freq: 987.77, len: 0.20 },
+      { freq: 783.99, len: 0.20 },
+      { freq: 659.25, len: 0.20 },
+      { freq: 0,      len: 0.20 }
+    ],
+    bass: [
+      { freq: 130.81, len: 0.40 },
+      { freq: 0,      len: 0.10 },
+      { freq: 196.00, len: 0.40 },
+      { freq: 0,      len: 0.10 }
+    ]
+  },
+  {
+    melody: [
+      { freq: 523.25, len: 0.20 },
+      { freq: 587.33, len: 0.20 },
+      { freq: 659.25, len: 0.20 },
+      { freq: 783.99, len: 0.20 },
+      { freq: 659.25, len: 0.20 },
+      { freq: 587.33, len: 0.20 },
+      { freq: 523.25, len: 0.20 },
+      { freq: 0,      len: 0.20 }
+    ],
+    bass: [
+      { freq: 196.00, len: 0.40 },
+      { freq: 0,      len: 0.10 },
+      { freq: 146.83, len: 0.40 },
+      { freq: 0,      len: 0.10 }
+    ]
+  },
+  {
+    melody: [
+      { freq: 659.25, len: 0.20 },
+      { freq: 698.46, len: 0.20 },
+      { freq: 783.99, len: 0.20 },
+      { freq: 987.77, len: 0.20 },
+      { freq: 783.99, len: 0.20 },
+      { freq: 698.46, len: 0.20 },
+      { freq: 659.25, len: 0.20 },
+      { freq: 0,      len: 0.20 }
+    ],
+    bass: [
+      { freq: 196.00, len: 0.40 },
+      { freq: 0,      len: 0.10 },
+      { freq: 196.00, len: 0.40 },
+      { freq: 0,      len: 0.10 }
+    ]
+  }
 ];
-const BGM_HARD_BASS = [
-  { freq: 110.00, len: 0.30 },
-  { freq: 0,      len: 0.10 },
-  { freq: 146.83, len: 0.30 },
-  { freq: 0,      len: 0.10 },
-  { freq: 110.00, len: 0.30 },
-  { freq: 0,      len: 0.10 },
-  { freq: 196.00, len: 0.30 },
-  { freq: 0,      len: 0.10 }
+
+// ちょうせん：H1, H2, H3
+const BGM_HARD_SECTIONS = [
+  {
+    melody: [
+      { freq: 440.00, len: 0.15 },
+      { freq: 523.25, len: 0.15 },
+      { freq: 587.33, len: 0.15 },
+      { freq: 659.25, len: 0.15 },
+      { freq: 587.33, len: 0.15 },
+      { freq: 523.25, len: 0.15 },
+      { freq: 440.00, len: 0.15 },
+      { freq: 0,      len: 0.15 }
+    ],
+    bass: [
+      { freq: 110.00, len: 0.30 },
+      { freq: 0,      len: 0.10 },
+      { freq: 146.83, len: 0.30 },
+      { freq: 0,      len: 0.10 }
+    ]
+  },
+  {
+    melody: [
+      { freq: 659.25, len: 0.15 },
+      { freq: 698.46, len: 0.15 },
+      { freq: 880.00, len: 0.15 },
+      { freq: 987.77, len: 0.15 },
+      { freq: 880.00, len: 0.15 },
+      { freq: 698.46, len: 0.15 },
+      { freq: 659.25, len: 0.15 },
+      { freq: 0,      len: 0.15 }
+    ],
+    bass: [
+      { freq: 110.00, len: 0.30 },
+      { freq: 0,      len: 0.10 },
+      { freq: 196.00, len: 0.30 },
+      { freq: 0,      len: 0.10 }
+    ]
+  },
+  {
+    melody: [
+      { freq: 523.25, len: 0.15 },
+      { freq: 587.33, len: 0.15 },
+      { freq: 659.25, len: 0.15 },
+      { freq: 783.99, len: 0.15 },
+      { freq: 659.25, len: 0.15 },
+      { freq: 587.33, len: 0.15 },
+      { freq: 523.25, len: 0.15 },
+      { freq: 0,      len: 0.15 }
+    ],
+    bass: [
+      { freq: 146.83, len: 0.30 },
+      { freq: 0,      len: 0.10 },
+      { freq: 196.00, len: 0.30 },
+      { freq: 0,      len: 0.10 }
+    ]
+  }
 ];
 
 /* BGM 停止 */
@@ -211,21 +293,18 @@ function stopBGM() {
   bgmNodes = [];
 }
 
-/* 1ループ分スケジュール */
+/* 1 セクション分スケジュール */
 function scheduleBgmBar() {
   if (!AC || !bgmOn || !bgmGain) return;
 
-  let MELODY, BASS;
-  if (currentBgm === "easy") {
-    MELODY = BGM_EASY_MELODY;
-    BASS   = BGM_EASY_BASS;
-  } else if (currentBgm === "normal") {
-    MELODY = BGM_NORMAL_MELODY;
-    BASS   = BGM_NORMAL_BASS;
-  } else {
-    MELODY = BGM_HARD_MELODY;
-    BASS   = BGM_HARD_BASS;
-  }
+  let SECTIONS;
+  if (currentBgm === "easy") SECTIONS = BGM_EASY_SECTIONS;
+  else if (currentBgm === "normal") SECTIONS = BGM_NORMAL_SECTIONS;
+  else SECTIONS = BGM_HARD_SECTIONS;
+
+  const section = SECTIONS[bgmSectionIndex % SECTIONS.length];
+  const MELODY = section.melody;
+  const BASS   = section.bass;
 
   const now = AC.currentTime;
   let tMel = now, tBass = now;
@@ -264,6 +343,9 @@ function scheduleBgmBar() {
     }
     tBass += len;
   });
+
+  // 次は別のセクションへ（E1→E2→E3→E2→E3… のようなループもあり）
+  bgmSectionIndex++;
 }
 
 /* BGM 開始（現在の難易度とスピードで） */
@@ -276,12 +358,19 @@ function startBGM() {
   bgmGain.gain.setValueAtTime(1.0, AC.currentTime);
   bgmOn = true;
 
-  const MELODY =
-    currentBgm === "easy"   ? BGM_EASY_MELODY :
-    currentBgm === "normal" ? BGM_NORMAL_MELODY :
-                              BGM_HARD_MELODY;
+  // 最初に使うセクション
+  bgmSectionIndex = 0;
 
-  const barSec = MELODY.reduce((s, n) => s + n.len * bgmSpeedFactor, 0);
+  let SECTIONS;
+  if (currentBgm === "easy") SECTIONS = BGM_EASY_SECTIONS;
+  else if (currentBgm === "normal") SECTIONS = BGM_NORMAL_SECTIONS;
+  else SECTIONS = BGM_HARD_SECTIONS;
+
+  const firstSection = SECTIONS[0];
+  const barSec = firstSection.melody.reduce(
+    (s, n) => s + n.len * bgmSpeedFactor,
+    0
+  );
 
   scheduleBgmBar();
   bgmTimer = setInterval(scheduleBgmBar, barSec * 1000);
@@ -291,6 +380,7 @@ function startBGM() {
    DOM 取得
 ----------------------------------------------------- */
 const els = {
+  title: document.getElementById("title"),
   qNo: document.getElementById("qNo"),
   qTotal: document.getElementById("qTotal"),
   left: document.getElementById("left"),
@@ -318,7 +408,8 @@ const els = {
   kukuGrid: document.getElementById("kukuGrid"),
   bgmToggle: document.getElementById("bgmToggle"),
   timeDisplay: document.getElementById("timeDisplay"),
-  kukuFloatingBtn: document.getElementById("kukuFloatingBtn")
+  kukuFloatingBtn: document.getElementById("kukuFloatingBtn"),
+  kukuHint: document.getElementById("kukuHint")
 };
 
 const modeBtns = document.querySelectorAll(".mode-btn");
@@ -340,6 +431,7 @@ let challengeMode = false;
 let timeLeft = 0;
 let timeTimerId = null;
 let lastStage = 1;
+let kukuHintShown = false;
 
 /* -----------------------------------------------------
    タイマー（ちょうせん用）
@@ -388,11 +480,12 @@ function makeQuiz() {
   currentInput = "";
   answerHistory = [];
   lastStage     = 1;
+  rainbowFlag   = false;
 
-  // ★コンボ表示リセット
+  // コンボ表示リセット
   updateComboUI();
 
-  // ★BGM 速さリセット
+  // BGM 速さリセット
   bgmSpeedFactor = 1.0;
   if (bgmOn) startBGM();
 
@@ -413,9 +506,9 @@ function updateUI() {
   els.right.textContent = quiz[idx][1];
   els.score.textContent = score;
   currentInput = "";
+  rainbowFlag = false;
   renderAnswer();
   feedback("");
-  // ※ここではコンボ表示は更新しない（正解時だけアニメさせたい）
 }
 
 /* 回答欄 */
@@ -515,6 +608,7 @@ els.submitBtn.onclick = () => {
     if (idx < totalQuestions - 1) {
       idx++;
       updateUI();
+      updateBuddy();
     } else {
       showResult();
     }
@@ -522,19 +616,33 @@ els.submitBtn.onclick = () => {
 };
 
 /* -----------------------------------------------------
-   コンボ表示
+   コンボ表示＆虹きょうりゅう
 ----------------------------------------------------- */
 function updateComboUI() {
   const badge = els.comboBadge;
 
   if (combo >= 2) {
-    // アニメーション再生のためリセット
     badge.classList.remove("combo-show", "combo-hot");
-    void badge.offsetWidth; // reflow
+    void badge.offsetWidth;
 
     badge.textContent = `${combo}コンボ！🔥`;
     if (combo >= 10) badge.classList.add("combo-hot");
     badge.classList.add("combo-show");
+
+    // 10コンボ以上で一時的に虹きょうりゅう
+    if (combo >= 10 && !rainbowFlag) {
+      rainbowFlag = true;
+      els.dinoEmoji.textContent = "🌈🦖";
+      els.dinoMsg.textContent = "スーパーれんしゅうタイム！";
+      els.starFill.style.background =
+        "linear-gradient(90deg, #f97316, #eab308, #22c55e, #3b82f6, #a855f7)";
+      setTimeout(() => {
+        // 次の updateBuddy で上書きされるので、ここではバー色だけ戻す
+        els.starFill.style.background =
+          "linear-gradient(90deg, #ffeb8b, #ffcc00)";
+        updateBuddy();
+      }, 1200);
+    }
   } else {
     badge.classList.remove("combo-show", "combo-hot");
     badge.textContent = "";
@@ -590,8 +698,11 @@ function updateBuddy() {
   if (stage === 2) emoji = "🐊";
   else if (stage === 3) emoji = "🦖";
   else if (stage === 4) emoji = "🌋🦖🦕🌋";
-  els.dinoEmoji.textContent = emoji;
 
+  // 夜モードのときはムーンきょうりゅう
+  if (nightMode) emoji = "🌙🦖";
+
+  els.dinoEmoji.textContent = emoji;
   els.dinoName.textContent = `レベル ${stage}`;
 
   if (ratio === 1) {
@@ -606,7 +717,9 @@ function updateBuddy() {
     els.dinoMsg.textContent = "がんばろう！";
   }
 
-  els.dinoArea.classList.remove("skin-forest", "skin-desert", "skin-volcano", "skin-super");
+  els.dinoArea.classList.remove(
+    "skin-forest", "skin-desert", "skin-volcano", "skin-super"
+  );
   if (stage === 1)      els.dinoArea.classList.add("skin-forest");
   else if (stage === 2) els.dinoArea.classList.add("skin-desert");
   else if (stage === 3) els.dinoArea.classList.add("skin-volcano");
@@ -618,6 +731,13 @@ function spawnStar() {
   const star = document.createElement("div");
   star.textContent = "⭐";
   star.className = "starburst";
+  star.style.position = "fixed";
+  star.style.left = "50%";
+  star.style.top = "50%";
+  star.style.transform = "translate(-50%, -50%)";
+  star.style.fontSize = "32px";
+  star.style.pointerEvents = "none";
+  star.style.animation = "starPop 0.7s ease-out";
   document.body.appendChild(star);
   setTimeout(() => star.remove(), 700);
 }
@@ -669,13 +789,27 @@ function showResult(reason = "") {
 
   playSE("RESULT");
 
-  // 100点なら花火
+  // 通常の花火
   if (score === 100 && typeof confetti === "function") {
     confetti({ particleCount: 120, spread: 70, origin: { y: 0.7 } });
     setTimeout(
       () =>
         confetti({ particleCount: 80, spread: 100, origin: { y: 0.5 } }),
       400
+    );
+  }
+
+  // ちょうせんモードで 95 点以上なら特別花火
+  if (challengeMode && score >= 95 && typeof confetti === "function") {
+    setTimeout(
+      () =>
+        confetti({
+          particleCount: 150,
+          spread: 120,
+          origin: { y: 0.6 },
+          colors: ["#ffa500", "#22c55e", "#3b82f6", "#a855f7"]
+        }),
+      800
     );
   }
 }
@@ -696,7 +830,7 @@ if (modalBackdrop) {
   modalBackdrop.onclick = () => els.tableModal.classList.add("hidden");
 }
 
-/* 九九表を生成（2の段は 2×1, 2×2,... のように列×行） */
+/* 九九表を生成（列×行の順）＋9×9長押しでヒント */
 function buildKukuGrid() {
   let html = `<table class="kuku-table"><thead><tr><th class="hd">×</th>`;
   for (let j = 1; j <= 9; j++) {
@@ -709,7 +843,7 @@ function buildKukuGrid() {
     for (let j = 1; j <= 9; j++) {
       const ans = i * j;
       html += `
-        <td class="expr">
+        <td class="expr" data-i="${i}" data-j="${j}">
           <span class="expr-main">${j}×${i}</span>
           <span class="expr-sub">=${ans}</span>
         </td>`;
@@ -718,6 +852,36 @@ function buildKukuGrid() {
   }
   html += `</tbody></table>`;
   els.kukuGrid.innerHTML = html;
+
+  // ヒントは一度だけ
+  if (!kukuHintShown) {
+    const cell = els.kukuGrid.querySelector('td.expr[data-i="9"][data-j="9"]');
+    if (cell) {
+      let timer = null;
+      const start = () => {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => {
+          if (!kukuHintShown) {
+            kukuHintShown = true;
+            els.kukuHint.textContent =
+              "ひみつヒント：9のだんは、指をおって数えるとおぼえやすいよ！";
+            els.kukuHint.style.display = "block";
+          }
+        }, 800);
+      };
+      const cancel = () => {
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+      };
+      cell.addEventListener("mousedown", start);
+      cell.addEventListener("touchstart", start);
+      ["mouseup", "mouseleave", "touchend", "touchcancel"].forEach((ev) =>
+        cell.addEventListener(ev, cancel)
+      );
+    }
+  }
 }
 
 /* -----------------------------------------------------
@@ -792,9 +956,17 @@ els.againBtn.onclick = () => {
 
 els.restartBtn.onclick = () => {
   initAudio();
-  enableModes();
-  modeBtns.forEach((b) => b.classList.remove("active"));
+  fullResetToEasy();
+};
 
+/* -----------------------------------------------------
+   タイトルタップ：完全リセット
+   長押し：夜モード切り替え
+----------------------------------------------------- */
+function fullResetToEasy() {
+  enableModes();
+
+  modeBtns.forEach((b) => b.classList.remove("active"));
   const easyBtn = [...modeBtns].find((b) => b.dataset.qcount === "10");
   if (easyBtn) easyBtn.classList.add("active");
 
@@ -806,15 +978,58 @@ els.restartBtn.onclick = () => {
   document.body.classList.add("bg-easy");
 
   if (bgmOn) startBGM();
-
   els.resultCard.classList.add("hidden");
   els.quizCard.classList.remove("hidden");
   makeQuiz();
-};
+}
+
+function toggleNightMode() {
+  nightMode = !nightMode;
+  if (nightMode) {
+    document.body.classList.add("night-mode");
+  } else {
+    document.body.classList.remove("night-mode");
+  }
+  updateBuddy();
+}
+
+// タイトルの短押し/長押し判定
+(() => {
+  let pressTimer = null;
+  let longPressed = false;
+
+  const start = (e) => {
+    e.preventDefault();
+    longPressed = false;
+    if (pressTimer) clearTimeout(pressTimer);
+    pressTimer = setTimeout(() => {
+      longPressed = true;
+      toggleNightMode();
+    }, 900); // 0.9秒以上で長押し扱い
+  };
+
+  const end = (e) => {
+    if (pressTimer) {
+      clearTimeout(pressTimer);
+      pressTimer = null;
+    }
+    if (!longPressed) {
+      // 通常タップ → 完全リセット
+      fullResetToEasy();
+    }
+  };
+
+  els.title.addEventListener("mousedown", start);
+  els.title.addEventListener("touchstart", start);
+  ["mouseup", "mouseleave", "touchend", "touchcancel"].forEach((ev) =>
+    els.title.addEventListener(ev, end)
+  );
+})();
 
 /* -----------------------------------------------------
    初期化
 ----------------------------------------------------- */
 els.bgmToggle.textContent = "🔇";
 els.bgmToggle.classList.add("bgm-off");
+document.body.classList.add("bg-easy");
 makeQuiz();
