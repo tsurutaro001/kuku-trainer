@@ -11,8 +11,8 @@
 </head>
 <body class="bg-easy">
   <div id="app">
-    <!-- タイトル -->
-    <h1 class="title">かけざん れんしゅう</h1>
+    <!-- タイトル（タップでリセット／長押しで夜モード） -->
+    <h1 id="title" class="title">かけざん れんしゅう</h1>
 
     <!-- 難易度 + BGM -->
     <div class="top-controls">
@@ -75,7 +75,7 @@
         <button id="keyBk" class="key">←</button>
       </div>
 
-      <!-- 送信ボタン -->
+      <!-- 送信ボタン（大きめ） -->
       <button id="submitBtn">こたえあわせ</button>
     </div>
 
@@ -98,6 +98,8 @@
       <div class="modal-content">
         <h3>かけ算九九（1〜9）</h3>
         <div id="kukuGrid"></div>
+        <!-- 九九ヒント（9×9長押しで表示） -->
+        <div id="kukuHint" class="kuku-hint"></div>
         <div style="margin-top: 10px; text-align:center;">
           <button id="closeModal">とじる</button>
         </div>
