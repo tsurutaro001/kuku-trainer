@@ -1,399 +1,368 @@
-/* ============================================================
-   style.css v14
-   ============================================================ */
-
+/* ----------------------------------------------------
+   基本レイアウト
+---------------------------------------------------- */
 body {
+  font-family: "Kosugi Maru", "Noto Sans JP", sans-serif;
   margin: 0;
   padding: 0;
-  font-family: "Nunito", "Segoe UI", sans-serif;
-  background: #e6f5ff;
+  background: #f6fcff;
   text-align: center;
   overflow-x: hidden;
 }
-.hidden { display: none !important; }
 
-#app { padding: 4px; }
+/* アプリの最大幅をスマホ向けに */
+#app {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 12px 12px 80px;
+}
 
 /* タイトル */
 .title {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 800;
-  margin: 6px 0 4px;
+  color: #0c568d;
+  margin: 6px 0 12px;
 }
 
-/* 難易度 + BGM */
+/* ----------------------------------------------------
+   トップコントロール（難易度＋BGM）
+---------------------------------------------------- */
 .top-controls {
-  max-width: 420px;
-  margin: 0 auto 4px;
-  position: relative;
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
+  margin-bottom: 8px;
 }
 
 .mode-select {
-  display: inline-flex;
-  gap: 6px;
-}
-.mode-btn {
-  padding: 6px 12px;
-  font-size: 13px;
-  border-radius: 999px;
-  background: #d0eaff;
-  border: none;
-  font-weight: 700;
-}
-.mode-btn.active {
-  background: #3398ff;
-  color: #fff;
-}
-/* 結果画面中はタップ禁止 */
-.mode-btn.disabled {
-  opacity: 0.4;
-  pointer-events: none;
-}
-
-/* BGM アイコン */
-#bgmToggle {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: none;
-  font-size: 18px;
-  font-weight: 700;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  gap: 4px;
 }
-.bgm-on  { background: #ffd18c; }
-.bgm-off { background: #e1e1e1; }
 
-#timeDisplay {
-  font-size: 22px;
-  font-weight: 700;
-  color: #ff4444;
+.mode-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: none;
+  background: #e0f2ff;
+  font-size: 14px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.mode-btn.active {
+  background: #7cd0ff;
+  color: #003f5e;
+  font-weight: bold;
+}
+
+.mode-btn.disabled {
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+/* BGM ボタン */
+#bgmToggle {
+  font-size: 20px;
+  padding: 6px 10px;
+  border-radius: 50%;
+  background: #ddd;
+  border: none;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+#bgmToggle.bgm-on {
+  background: #ffd59e;
+}
+
+#bgmToggle.bgm-off {
+  background: #ddd;
+}
+
+/* ----------------------------------------------------
+   きょうりゅうカード（移動後）
+---------------------------------------------------- */
+.dino-area {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 10px 0 12px;
+  margin: 8px auto 12px;
+  width: 95%;
+  box-shadow: 0 2px 6px #0001;
+}
+
+.dino-label {
+  font-size: 12px;
+  background: #cdeafe;
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 10px;
   margin-bottom: 4px;
 }
 
-/* カード共通 */
-.card {
-  background: #fff;
-  max-width: 420px;
-  margin: 4px auto;
-  padding: 14px;
-  border-radius: 18px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  max-height: calc(100vh - 120px);
-  overflow-y: auto;
+#dinoEmoji {
+  font-size: 48px;
+  display: block;
+  margin: 4px 0;
 }
 
-/* ステータス行 */
+#dinoName {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+#dinoMsg {
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+/* レベルメーター */
+.star-bar {
+  width: 80%;
+  height: 14px;
+  background: #eee;
+  border-radius: 10px;
+  margin: 0 auto;
+  overflow: hidden;
+  position: relative;
+}
+
+#starFill {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, #ffeb8b, #ffcc00);
+  transition: width 0.4s ease;
+}
+
+/* 背景テーマ（スキン） */
+.skin-forest { background-image: linear-gradient(#d7f7dc, #eafff9); }
+.skin-desert { background-image: linear-gradient(#fbe8b5, #ffeecd); }
+.skin-volcano { background-image: linear-gradient(#ffd1d1, #ffeaea); }
+.skin-super { background-image: linear-gradient(#ffbbbb, #ffdddd); }
+
+/* ----------------------------------------------------
+   問題カード
+---------------------------------------------------- */
+.card {
+  background: #ffffff;
+  padding: 12px 14px 16px;
+  border-radius: 12px;
+  margin: 8px auto;
+  max-width: 460px;
+  box-shadow: 0 2px 6px #0002;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* 状況表示（3/10｜スコア） */
 .status-line {
   font-size: 13px;
-  color: #777;
+  color: #666;
   margin-bottom: 4px;
 }
 
 /* 問題 */
 .problem {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 36px;
+  font-size: 32px;
   font-weight: 800;
-  margin: 4px 0 2px;
+  color: #24445e;
+  margin: 18px 0 6px;
 }
 
-/* 回答ボックス */
 #answerBox {
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
+  display: inline-block;
   min-width: 60px;
-  min-height: 42px;
-  font-size: 30px;
-  font-weight: 800;
-  padding: 4px 12px;
-  border: 3px solid #55b1ff;
-  border-radius: 14px;
-  background: #f0faff;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #fff7c1;
   transition: transform 0.15s ease;
 }
+
+/* 正解エフェクト（ポンッ） */
 .answer-pop {
-  animation: ans-pop 0.18s ease;
+  animation: ans-pop 0.25s ease;
 }
+
 @keyframes ans-pop {
   0% { transform: scale(1); }
-  50%{ transform: scale(1.1); }
- 100%{ transform: scale(1); }
+  40% { transform: scale(1.25); }
+  100% { transform: scale(1); }
 }
 
-/* コンボバッジ */
-#comboBadge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 4px;
-  padding: 2px 14px;
-  border-radius: 999px;
-  background: #ffe6c0;
-  color: #ff7b00;
-  font-size: 18px;
-  font-weight: 800;
-  opacity: 0;
-  transform: scale(0.8);
-}
-.combo-show {
-  animation: combo-badge 0.45s ease;
-  opacity: 1;
-}
-.combo-hot {
-  background: #ffcece;
-  color: #ff3b3b;
-}
-@keyframes combo-badge {
-  0%   { transform: scale(0.4); opacity: 0; }
-  50%  { transform: scale(1.2); opacity: 1; }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-/* せいかい／ざんねん */
+/* 正解／不正解メッセージ */
 .fx {
-  height: 30px;
-  font-size: 22px;
-  font-weight: 800;
+  font-size: 20px;
+  height: 24px;
   margin-top: 2px;
-}
-.fx.ok {
-  color: #00a700;
-  animation: fx-pop 0.4s ease;
-}
-.fx.ng {
-  color: #ff3333;
-  animation: fx-pop 0.4s ease;
-}
-@keyframes fx-pop {
-  0%   { transform: scale(0.7); opacity: 0;}
-  40%  { transform: scale(1.2); opacity: 1;}
-  100% { transform: scale(1);   opacity: 1;}
+  min-height: 20px;
 }
 
-/* キーパッド */
+/* ----------------------------------------------------
+   コンボバッジ
+---------------------------------------------------- */
+#comboBadge {
+  position: relative;
+  margin: 4px auto;
+  font-size: 16px;
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: #b3e4ff;
+  width: fit-content;
+  display: none;
+}
+
+.combo-show {
+  display: inline-block !important;
+  animation: comboPop 0.5s ease;
+}
+
+@keyframes comboPop {
+  0% { transform: scale(0.4); opacity:0; }
+  50% { transform: scale(1.15); opacity:1; }
+  100% { transform: scale(1); }
+}
+
+.combo-hot {
+  background: #ffd27d !important;
+}
+
+/* ----------------------------------------------------
+   キーパッド
+---------------------------------------------------- */
 .keypad {
-  margin-top: 8px;
+  width: 100%;
+  max-width: 380px;
+  margin: 8px auto 10px;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  max-width: 240px;
-  margin-left: auto;
-  margin-right: auto;
   gap: 8px;
 }
+
 .key {
-  width: 70px;
-  height: 70px;
-  border-radius: 50%;
-  background: #d9ebff;
+  padding: 12px;
   font-size: 22px;
-  font-weight: 800;
+  border-radius: 12px;
   border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #223355;
-  box-shadow: 0 2px 0 #a8c0e6;
+  cursor: pointer;
+  background: #a6d7ff;
+  transition: 0.15s;
 }
-.key:hover {
-  background: #c9e0ff;
+
+.key:active {
+  transform: scale(0.92);
 }
+
 .key.disabled {
   opacity: 0.5;
   pointer-events: none;
 }
 
-/* C / ← */
-#keyClr,
-#keyBk {
-  background: #ffffff !important;
-  color: #ff4b4b !important;
-  border: 2px solid #ff7b7b !important;
-  box-shadow: 0 2px 0 #d15c5c !important;
+#keyClr, #keyBk {
+  background: white;
+  border: 2px solid #ff5757;
+  color: #ff5757;
 }
 
-/* こたえあわせ */
+/* ----------------------------------------------------
+   こたえあわせボタン
+---------------------------------------------------- */
 #submitBtn {
-  width: 80%;
-  max-width: 280px;
-  margin-top: 10px;
-  padding: 12px;
-  background: #3398ff;
-  color: #fff;
-  border-radius: 999px;
-  font-size: 20px;
-  font-weight: 800;
-  border: none;
-  box-shadow: 0 4px 0 #2672c9;
-}
-
-/* 恐竜エリア */
-.dino-area {
-  margin-top: 10px;
-  padding: 10px;
-  border-radius: 16px;
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
-}
-.skin-forest      { background: linear-gradient(#fffde4, #e6ffd2); }
-.skin-desert      { background: linear-gradient(#fff3d1, #ffe0a8); }
-.skin-volcano     { background: linear-gradient(#ffe0d1, #ffb9a8); }
-.skin-supervolcano{ background: linear-gradient(#ffd1d1, #ff8888); }
-
-.dino-label {
-  font-size: 11px;
-  font-weight: 700;
-  color: #555;
-  background: rgba(255,255,255,0.7);
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 999px;
-  margin-bottom: 4px;
-}
-#dinoEmoji {
-  font-size: 38px;
-  display: block;
-  margin-bottom: 2px;
-}
-
-/* レベルメーター */
-.star-bar {
-  width: 100%;
-  background: #e2e2e2;
-  height: 10px;
-  border-radius: 999px;
   margin-top: 6px;
-  overflow: hidden;
-}
-#starFill {
-  height: 100%;
-  background: linear-gradient(90deg, #ffd500, #ffb300);
-  width: 0%;
-}
-
-/* 恐竜ジャンプ */
-.dino-bounce {
-  animation: dino-bounce 0.6s ease;
-}
-@keyframes dino-bounce {
-  0%   { transform: translateY(0); }
-  35%  { transform: translateY(-18px); }
-  100% { transform: translateY(0); }
+  padding: 12px 20px;
+  font-size: 18px;
+  border-radius: 10px;
+  border: none;
+  background: #66ccff;
+  color: #003f5e;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.2s;
 }
 
-/* スター演出（正解） */
-.starburst {
-  position: fixed;
-  font-size: 28px;
-  animation: starburst 0.7s ease-out;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-}
-@keyframes starburst {
-  0%   { transform: translate(-50%, -50%) scale(0.4); opacity: 0; }
-  30%  { opacity: 1; }
-  100% { transform: translate(-50%, -120%) scale(1.4); opacity: 0; }
+#submitBtn:active {
+  transform: scale(0.95);
 }
 
-/* 結果カード */
+/* ----------------------------------------------------
+   結果カード
+---------------------------------------------------- */
 #finalScore {
-  font-size: 36px;
+  font-size: 38px;
   font-weight: 800;
-  margin: 6px 0;
+  margin: 6px 0 10px;
 }
 
-/* 結果画面の大きめボタン */
+#summaryList .medal {
+  text-align: center;
+  font-size: 26px;
+  margin-bottom: 6px;
+}
+
 .result-actions {
   display: flex;
   justify-content: center;
-  gap: 12px;
+  gap: 16px;
   margin-top: 16px;
 }
+
 .result-btn {
-  flex: 1;
-  max-width: 150px;
-  padding: 10px 0;
-  border-radius: 999px;
-  border: none;
-  font-size: 16px;
-  font-weight: 700;
-  background: #e6e6e6;
-  box-shadow: 0 3px 0 #c0c0c0;
-}
-.result-btn-primary {
-  background: #3398ff;
-  color: #fff;
-  box-shadow: 0 3px 0 #2672c9;
-}
-
-/* 九九モーダル */
-.modal { position: fixed; inset: 0; }
-.modal.hidden { display: none; }
-.modal-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(0,0,0,0.45);
-}
-.modal-content {
-  background: #fff;
-  position: absolute;
-  inset: 8% 4%;
-  padding: 16px;
-  overflow-y: auto;
+  padding: 14px 20px;
+  font-size: 18px;
   border-radius: 12px;
-}
-.kuku-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-.kuku-table td,
-.kuku-table .hd {
-  padding: 4px;
-  border: 1px solid #b4e3ff;
-}
-.kuku-table .hd {
-  background: #e0f4ff;
-  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  background: #eeeeee;
 }
 
-/* 九九フローティングボタン（右下） */
+.result-btn-primary {
+  background: #8cd4ff;
+}
+
+/* ----------------------------------------------------
+   モーダル（九九）
+---------------------------------------------------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: #0006;
+}
+
+.modal-content {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  padding: 18px;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 380px;
+  max-height: 80%;
+  overflow-y: auto;
+}
+
+#kukuGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  font-size: 14px;
+}
+
+/* ----------------------------------------------------
+   九九フローティングボタン（📘）
+---------------------------------------------------- */
 #kukuFloatingBtn {
   position: fixed;
-  right: 16px;
-  bottom: 16px;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
+  right: 18px;
+  bottom: 18px;
+  font-size: 30px;
+  background: #7acbff;
   border: none;
-  background: #4aa3ff;
-  color: #fff;
-  font-size: 26px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-  z-index: 1000;
-}
-
-/* 背景（難易度） */
-.bg-easy   { background: #e6f5ff !important; }
-.bg-normal { background: #d7ffd7 !important; }
-.bg-hard   { background: #ffd7d7 !important; }
-
-/* スマホ調整 */
-@media (max-width: 420px) {
-  .key {
-    width: 62px;
-    height: 62px;
-    font-size: 20px;
-  }
+  padding: 14px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 4px 7px #0003;
 }
