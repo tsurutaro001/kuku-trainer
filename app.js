@@ -1,9 +1,7 @@
 /* =====================================================
-   app.js v12c
-   - bgmSpeedFactor リセット＆再スタート
-   - 九九: 下ボタン削除 → 📘 のみ
-   - コンボバッジのアニメーション/表示改善
-   ===================================================== */
+   app.js
+   - 九九練習アプリ（きょうりゅう・BGM・コンボ付き）
+===================================================== */
 
 let AC = null;
 let bgmOn = false;
@@ -13,7 +11,9 @@ let currentBgm = "easy";
 let bgmSpeedFactor = 1.0;
 let bgmNodes = [];
 
-/* --------- Audio / BGM --------- */
+/* -----------------------------------------------------
+   Audio / BGM 初期化
+----------------------------------------------------- */
 function initAudio() {
   if (!AC) {
     const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -27,12 +27,14 @@ function initAudio() {
   }
 }
 
+/* 効果音（OK / NG / コンボ / レベルアップ / 結果） */
 function playSE(type) {
   if (!AC) return;
   const osc = AC.createOscillator();
   const gain = AC.createGain();
   osc.connect(gain);
   gain.connect(AC.destination);
+
   const end = (t) => {
     osc.start();
     osc.stop(AC.currentTime + t);
@@ -94,8 +96,12 @@ function playSE(type) {
   }
 }
 
-/* BGM パターン（略記） */
+/* -----------------------------------------------------
+   BGM パターン（A→B の2小節構成）
+----------------------------------------------------- */
+/* やさしい：明るい感じ */
 const BGM_EASY_MELODY = [
+  // A
   { freq: 523.25, len: 0.25 },
   { freq: 587.33, len: 0.25 },
   { freq: 659.25, len: 0.25 },
@@ -103,49 +109,93 @@ const BGM_EASY_MELODY = [
   { freq: 659.25, len: 0.25 },
   { freq: 587.33, len: 0.25 },
   { freq: 523.25, len: 0.25 },
-  { freq: 0, len: 0.25 }
+  { freq: 0,      len: 0.25 },
+  // B
+  { freq: 587.33, len: 0.25 },
+  { freq: 659.25, len: 0.25 },
+  { freq: 783.99, len: 0.25 },
+  { freq: 880.00, len: 0.25 },
+  { freq: 783.99, len: 0.25 },
+  { freq: 659.25, len: 0.25 },
+  { freq: 587.33, len: 0.25 },
+  { freq: 0,      len: 0.25 }
 ];
 const BGM_EASY_BASS = [
   { freq: 130.81, len: 0.5 },
-  { freq: 0, len: 0.25 },
-  { freq: 98.0, len: 0.5 },
-  { freq: 0, len: 0.25 }
+  { freq: 0,      len: 0.25 },
+  { freq: 98.00,  len: 0.5 },
+  { freq: 0,      len: 0.25 },
+  { freq: 146.83, len: 0.5 },
+  { freq: 0,      len: 0.25 },
+  { freq: 98.00,  len: 0.5 },
+  { freq: 0,      len: 0.25 }
 ];
 
+/* ふつう：少し疾走感 */
 const BGM_NORMAL_MELODY = [
-  { freq: 659.25, len: 0.2 }, { freq: 783.99, len: 0.2 },
-  { freq: 987.77, len: 0.2 }, { freq: 1046.5, len: 0.2 },
-  { freq: 987.77, len: 0.2 }, { freq: 783.99, len: 0.2 },
-  { freq: 659.25, len: 0.2 }, { freq: 0, len: 0.2 },
-  { freq: 523.25, len: 0.2 }, { freq: 659.25, len: 0.2 },
-  { freq: 783.99, len: 0.2 }, { freq: 987.77, len: 0.2 },
-  { freq: 783.99, len: 0.2 }, { freq: 659.25, len: 0.2 },
-  { freq: 523.25, len: 0.2 }, { freq: 0, len: 0.2 }
+  // A
+  { freq: 659.25, len: 0.20 },
+  { freq: 783.99, len: 0.20 },
+  { freq: 987.77, len: 0.20 },
+  { freq: 1046.5, len: 0.20 },
+  { freq: 987.77, len: 0.20 },
+  { freq: 783.99, len: 0.20 },
+  { freq: 659.25, len: 0.20 },
+  { freq: 0,      len: 0.20 },
+  // B
+  { freq: 523.25, len: 0.20 },
+  { freq: 587.33, len: 0.20 },
+  { freq: 659.25, len: 0.20 },
+  { freq: 783.99, len: 0.20 },
+  { freq: 659.25, len: 0.20 },
+  { freq: 587.33, len: 0.20 },
+  { freq: 523.25, len: 0.20 },
+  { freq: 0,      len: 0.20 }
 ];
 const BGM_NORMAL_BASS = [
-  { freq: 130.81, len: 0.4 }, { freq: 0, len: 0.1 },
-  { freq: 196.0, len: 0.4 },  { freq: 0, len: 0.1 },
-  { freq: 146.83, len: 0.4 }, { freq: 0, len: 0.1 },
-  { freq: 196.0, len: 0.4 },  { freq: 0, len: 0.1 }
+  { freq: 130.81, len: 0.40 },
+  { freq: 0,      len: 0.10 },
+  { freq: 196.00, len: 0.40 },
+  { freq: 0,      len: 0.10 },
+  { freq: 146.83, len: 0.40 },
+  { freq: 0,      len: 0.10 },
+  { freq: 196.00, len: 0.40 },
+  { freq: 0,      len: 0.10 }
 ];
 
+/* ちょうせん：緊張感のある展開 */
 const BGM_HARD_MELODY = [
-  { freq: 440.0, len: 0.15 }, { freq: 523.25, len: 0.15 },
-  { freq: 587.33, len: 0.15 }, { freq: 659.25, len: 0.15 },
-  { freq: 587.33, len: 0.15 }, { freq: 523.25, len: 0.15 },
-  { freq: 440.0, len: 0.15 }, { freq: 0, len: 0.15 },
-  { freq: 659.25, len: 0.15 }, { freq: 698.46, len: 0.15 },
-  { freq: 880.0, len: 0.15 },  { freq: 987.77, len: 0.15 },
-  { freq: 880.0, len: 0.15 },  { freq: 698.46, len: 0.15 },
-  { freq: 659.25, len: 0.15 }, { freq: 0, len: 0.15 }
+  // A
+  { freq: 440.00, len: 0.15 },
+  { freq: 523.25, len: 0.15 },
+  { freq: 587.33, len: 0.15 },
+  { freq: 659.25, len: 0.15 },
+  { freq: 587.33, len: 0.15 },
+  { freq: 523.25, len: 0.15 },
+  { freq: 440.00, len: 0.15 },
+  { freq: 0,      len: 0.15 },
+  // B
+  { freq: 659.25, len: 0.15 },
+  { freq: 698.46, len: 0.15 },
+  { freq: 880.00, len: 0.15 },
+  { freq: 987.77, len: 0.15 },
+  { freq: 880.00, len: 0.15 },
+  { freq: 698.46, len: 0.15 },
+  { freq: 659.25, len: 0.15 },
+  { freq: 0,      len: 0.15 }
 ];
 const BGM_HARD_BASS = [
-  { freq: 110.0, len: 0.3 }, { freq: 0, len: 0.1 },
-  { freq: 146.83, len: 0.3 }, { freq: 0, len: 0.1 },
-  { freq: 110.0, len: 0.3 }, { freq: 0, len: 0.1 },
-  { freq: 196.0, len: 0.3 }, { freq: 0, len: 0.1 }
+  { freq: 110.00, len: 0.30 },
+  { freq: 0,      len: 0.10 },
+  { freq: 146.83, len: 0.30 },
+  { freq: 0,      len: 0.10 },
+  { freq: 110.00, len: 0.30 },
+  { freq: 0,      len: 0.10 },
+  { freq: 196.00, len: 0.30 },
+  { freq: 0,      len: 0.10 }
 ];
 
+/* BGM 停止 */
 function stopBGM() {
   bgmOn = false;
   if (bgmTimer) {
@@ -155,26 +205,33 @@ function stopBGM() {
   if (AC && bgmGain) {
     bgmGain.gain.setValueAtTime(0, AC.currentTime);
   }
-  bgmNodes.forEach(o => { try { o.stop(); } catch(e){} });
+  bgmNodes.forEach((o) => {
+    try { o.stop(); } catch (e) {}
+  });
   bgmNodes = [];
 }
 
+/* 1ループ分スケジュール */
 function scheduleBgmBar() {
   if (!AC || !bgmOn || !bgmGain) return;
+
   let MELODY, BASS;
   if (currentBgm === "easy") {
-    MELODY = BGM_EASY_MELODY; BASS = BGM_EASY_BASS;
+    MELODY = BGM_EASY_MELODY;
+    BASS   = BGM_EASY_BASS;
   } else if (currentBgm === "normal") {
-    MELODY = BGM_NORMAL_MELODY; BASS = BGM_NORMAL_BASS;
+    MELODY = BGM_NORMAL_MELODY;
+    BASS   = BGM_NORMAL_BASS;
   } else {
-    MELODY = BGM_HARD_MELODY;   BASS = BGM_HARD_BASS;
+    MELODY = BGM_HARD_MELODY;
+    BASS   = BGM_HARD_BASS;
   }
 
   const now = AC.currentTime;
   let tMel = now, tBass = now;
   const volMel = 0.07, volBass = 0.04;
 
-  MELODY.forEach(n => {
+  MELODY.forEach((n) => {
     const len = n.len * bgmSpeedFactor;
     if (n.freq > 0) {
       const o = AC.createOscillator();
@@ -183,14 +240,15 @@ function scheduleBgmBar() {
       o.type = "square";
       o.frequency.setValueAtTime(n.freq, tMel);
       g.gain.setValueAtTime(volMel, tMel);
-      g.gain.exponentialRampToValueAtTime(0.0001, tMel + len*0.9);
-      o.start(tMel); o.stop(tMel + len);
+      g.gain.exponentialRampToValueAtTime(0.0001, tMel + len * 0.9);
+      o.start(tMel);
+      o.stop(tMel + len);
       bgmNodes.push(o);
     }
     tMel += len;
   });
 
-  BASS.forEach(n => {
+  BASS.forEach((n) => {
     const len = n.len * bgmSpeedFactor;
     if (n.freq > 0) {
       const o = AC.createOscillator();
@@ -199,14 +257,16 @@ function scheduleBgmBar() {
       o.type = "square";
       o.frequency.setValueAtTime(n.freq, tBass);
       g.gain.setValueAtTime(volBass, tBass);
-      g.gain.exponentialRampToValueAtTime(0.0001, tBass + len*0.9);
-      o.start(tBass); o.stop(tBass + len);
+      g.gain.exponentialRampToValueAtTime(0.0001, tBass + len * 0.9);
+      o.start(tBass);
+      o.stop(tBass + len);
       bgmNodes.push(o);
     }
     tBass += len;
   });
 }
 
+/* BGM 開始（現在の難易度とスピードで） */
 function startBGM() {
   initAudio();
   if (!AC || !bgmGain) return;
@@ -220,13 +280,16 @@ function startBGM() {
     currentBgm === "easy"   ? BGM_EASY_MELODY :
     currentBgm === "normal" ? BGM_NORMAL_MELODY :
                               BGM_HARD_MELODY;
-  const barSec = MELODY.reduce((s,n)=>s+n.len*bgmSpeedFactor,0);
+
+  const barSec = MELODY.reduce((s, n) => s + n.len * bgmSpeedFactor, 0);
 
   scheduleBgmBar();
   bgmTimer = setInterval(scheduleBgmBar, barSec * 1000);
 }
 
-/* --------- DOM --------- */
+/* -----------------------------------------------------
+   DOM 取得
+----------------------------------------------------- */
 const els = {
   qNo: document.getElementById("qNo"),
   qTotal: document.getElementById("qTotal"),
@@ -257,10 +320,13 @@ const els = {
   timeDisplay: document.getElementById("timeDisplay"),
   kukuFloatingBtn: document.getElementById("kukuFloatingBtn")
 };
-const modeBtns = document.querySelectorAll(".mode-btn");
-const keys = document.querySelectorAll(".key");
 
-/* --------- 状態 --------- */
+const modeBtns = document.querySelectorAll(".mode-btn");
+const keys     = document.querySelectorAll(".key");
+
+/* -----------------------------------------------------
+   状態管理
+----------------------------------------------------- */
 let quiz = [];
 let idx = 0;
 let correctCount = 0;
@@ -275,7 +341,9 @@ let timeLeft = 0;
 let timeTimerId = null;
 let lastStage = 1;
 
-/* タイマー */
+/* -----------------------------------------------------
+   タイマー（ちょうせん用）
+----------------------------------------------------- */
 function startTimer() {
   timeLeft = 60;
   els.timeDisplay.textContent = "60";
@@ -298,26 +366,33 @@ function stopTimer() {
   els.timeDisplay.classList.add("hidden");
 }
 
-/* 問題生成 */
+/* -----------------------------------------------------
+   問題生成
+----------------------------------------------------- */
 function makeQuiz() {
   const all = [];
-  for (let a=1;a<=9;a++) for (let b=1;b<=9;b++) all.push([a,b]);
-  for (let i=all.length-1;i>0;i--) {
-    const j = Math.floor(Math.random()*(i+1));
-    [all[i],all[j]] = [all[j],all[i]];
+  for (let a = 1; a <= 9; a++) {
+    for (let b = 1; b <= 9; b++) all.push([a, b]);
   }
-  quiz = all.slice(0,totalQuestions);
+  for (let i = all.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [all[i], all[j]] = [all[j], all[i]];
+  }
+  quiz = all.slice(0, totalQuestions);
 
   idx = 0;
   correctCount = 0;
-  wrongCount = 0;
-  score = 0;
-  combo = 0;
+  wrongCount   = 0;
+  score        = 0;
+  combo        = 0;
   currentInput = "";
   answerHistory = [];
-  lastStage = 1;
+  lastStage     = 1;
 
-  // ★ BGM の速さをリセット
+  // ★コンボ表示リセット
+  updateComboUI();
+
+  // ★BGM 速さリセット
   bgmSpeedFactor = 1.0;
   if (bgmOn) startBGM();
 
@@ -329,33 +404,37 @@ function makeQuiz() {
   updateBuddy();
 }
 
-/* UI */
+/* -----------------------------------------------------
+   UI 更新
+----------------------------------------------------- */
 function updateUI() {
-  els.qNo.textContent = idx + 1;
-  els.left.textContent = quiz[idx][0];
+  els.qNo.textContent   = idx + 1;
+  els.left.textContent  = quiz[idx][0];
   els.right.textContent = quiz[idx][1];
   els.score.textContent = score;
   currentInput = "";
   renderAnswer();
   feedback("");
-  updateComboUI();
+  // ※ここではコンボ表示は更新しない（正解時だけアニメさせたい）
 }
 
-/* 回答表示 */
+/* 回答欄 */
 function renderAnswer() {
   els.answerBox.textContent = currentInput || "□";
 }
 
 /* キーパッド有効/無効 */
 function setKeypadEnabled(enabled) {
-  keys.forEach(k => {
+  keys.forEach((k) => {
     if (enabled) k.classList.remove("disabled");
-    else k.classList.add("disabled");
+    else         k.classList.add("disabled");
   });
 }
 
-/* キーパッド入力 */
-keys.forEach(btn => {
+/* -----------------------------------------------------
+   キーパッド入力
+----------------------------------------------------- */
+keys.forEach((btn) => {
   const t = btn.textContent.trim();
   if (/^\d$/.test(t)) {
     btn.onclick = () => {
@@ -368,12 +447,14 @@ keys.forEach(btn => {
     };
   }
 });
+
 els.keyBk.onclick = () => {
   initAudio();
   if (els.keyBk.classList.contains("disabled")) return;
-  currentInput = currentInput.slice(0,-1);
+  currentInput = currentInput.slice(0, -1);
   renderAnswer();
 };
+
 els.keyClr.onclick = () => {
   initAudio();
   if (els.keyClr.classList.contains("disabled")) return;
@@ -381,20 +462,23 @@ els.keyClr.onclick = () => {
   renderAnswer();
 };
 
-/* 採点 */
+/* -----------------------------------------------------
+   採点処理
+----------------------------------------------------- */
 els.submitBtn.onclick = () => {
   initAudio();
   if (!currentInput) {
     feedback("数字を入力してね", null);
     return;
   }
-  const [a,b] = quiz[idx];
-  const ans = a*b;
-  const user = parseInt(currentInput,10);
-  const ok = (user === ans);
+
+  const [a, b] = quiz[idx];
+  const ans  = a * b;
+  const user = parseInt(currentInput, 10);
+  const ok   = (user === ans);
 
   els.answerBox.classList.add("answer-pop");
-  setTimeout(()=>els.answerBox.classList.remove("answer-pop"),180);
+  setTimeout(() => els.answerBox.classList.remove("answer-pop"), 180);
 
   if (ok) {
     correctCount++;
@@ -418,16 +502,17 @@ els.submitBtn.onclick = () => {
   score = Math.round((correctCount / totalQuestions) * 100);
   els.score.textContent = score;
 
-  answerHistory.push({a,b,ans,user,ok});
+  answerHistory.push({ a, b, ans, user, ok });
   feedback("", ok);
   updateBuddy();
   updateComboUI();
   updateComboBgmSpeed();
 
   setKeypadEnabled(false);
+
   setTimeout(() => {
     setKeypadEnabled(true);
-    if (idx < totalQuestions-1) {
+    if (idx < totalQuestions - 1) {
       idx++;
       updateUI();
     } else {
@@ -436,18 +521,22 @@ els.submitBtn.onclick = () => {
   }, ok ? 700 : 900);
 };
 
-/* コンボ表示（毎回アニメーションリセット） */
+/* -----------------------------------------------------
+   コンボ表示
+----------------------------------------------------- */
 function updateComboUI() {
   const badge = els.comboBadge;
+
   if (combo >= 2) {
-    badge.classList.remove("combo-show","combo-hot");
-    // reflow してアニメーションを確実に再生
-    void badge.offsetWidth;
+    // アニメーション再生のためリセット
+    badge.classList.remove("combo-show", "combo-hot");
+    void badge.offsetWidth; // reflow
+
     badge.textContent = `${combo}コンボ！🔥`;
     if (combo >= 10) badge.classList.add("combo-hot");
     badge.classList.add("combo-show");
   } else {
-    badge.classList.remove("combo-show","combo-hot");
+    badge.classList.remove("combo-show", "combo-hot");
     badge.textContent = "";
   }
 }
@@ -455,13 +544,16 @@ function updateComboUI() {
 /* コンボに応じた BGM 速度 */
 function updateComboBgmSpeed() {
   const old = bgmSpeedFactor;
-  if (combo >= 8) bgmSpeedFactor = 0.6;
+  if (combo >= 8)      bgmSpeedFactor = 0.6;
   else if (combo >= 4) bgmSpeedFactor = 0.8;
-  else bgmSpeedFactor = 1.0;
+  else                 bgmSpeedFactor = 1.0;
+
   if (old !== bgmSpeedFactor && bgmOn) startBGM();
 }
 
-/* メッセージ */
+/* -----------------------------------------------------
+   メッセージ
+----------------------------------------------------- */
 function feedback(msg, ok) {
   els.fx.className = "fx";
   if (ok === true) {
@@ -475,20 +567,22 @@ function feedback(msg, ok) {
   }
 }
 
-/* 恐竜 */
+/* -----------------------------------------------------
+   きょうりゅうエリア
+----------------------------------------------------- */
 function updateBuddy() {
-  const ratio = totalQuestions ? correctCount/totalQuestions : 0;
-  els.starFill.style.width = (ratio*100) + "%";
+  const ratio = totalQuestions ? correctCount / totalQuestions : 0;
+  els.starFill.style.width = (ratio * 100) + "%";
 
   let stage = 1;
-  if (ratio >= 0.75) stage = 4;
-  else if (ratio >= 0.5) stage = 3;
+  if (ratio >= 0.75)      stage = 4;
+  else if (ratio >= 0.5)  stage = 3;
   else if (ratio >= 0.25) stage = 2;
 
   if (stage > lastStage) {
     els.dinoEmoji.classList.add("dino-bounce");
     playSE("LEVELUP");
-    setTimeout(()=>els.dinoEmoji.classList.remove("dino-bounce"),600);
+    setTimeout(() => els.dinoEmoji.classList.remove("dino-bounce"), 600);
   }
   lastStage = stage;
 
@@ -499,17 +593,24 @@ function updateBuddy() {
   els.dinoEmoji.textContent = emoji;
 
   els.dinoName.textContent = `レベル ${stage}`;
-  if (ratio === 1)      els.dinoMsg.textContent = "ぜんもんせいかい！きょうりゅうもびっくり！";
-  else if (ratio >= .8) els.dinoMsg.textContent = "あとちょっとでパーフェクト！";
-  else if (ratio >= .5) els.dinoMsg.textContent = "いいちょうし！このままつづけよう！";
-  else if (ratio > 0)   els.dinoMsg.textContent = "すこしずつできてきたよ！";
-  else                  els.dinoMsg.textContent = "がんばろう！";
 
-  els.dinoArea.classList.remove("skin-forest","skin-desert","skin-volcano","skin-supervolcano");
-  if (stage === 1) els.dinoArea.classList.add("skin-forest");
+  if (ratio === 1) {
+    els.dinoMsg.textContent = "ぜんもんせいかい！きょうりゅうもびっくり！";
+  } else if (ratio >= 0.8) {
+    els.dinoMsg.textContent = "あとちょっとでパーフェクト！";
+  } else if (ratio >= 0.5) {
+    els.dinoMsg.textContent = "いいちょうし！このままつづけよう！";
+  } else if (ratio > 0) {
+    els.dinoMsg.textContent = "すこしずつできてきたよ！";
+  } else {
+    els.dinoMsg.textContent = "がんばろう！";
+  }
+
+  els.dinoArea.classList.remove("skin-forest", "skin-desert", "skin-volcano", "skin-super");
+  if (stage === 1)      els.dinoArea.classList.add("skin-forest");
   else if (stage === 2) els.dinoArea.classList.add("skin-desert");
   else if (stage === 3) els.dinoArea.classList.add("skin-volcano");
-  else els.dinoArea.classList.add("skin-supervolcano");
+  else                  els.dinoArea.classList.add("skin-super");
 }
 
 /* スター演出 */
@@ -518,22 +619,25 @@ function spawnStar() {
   star.textContent = "⭐";
   star.className = "starburst";
   document.body.appendChild(star);
-  setTimeout(()=>star.remove(),700);
+  setTimeout(() => star.remove(), 700);
 }
 
-/* 結果 */
-function showResult(reason="") {
+/* -----------------------------------------------------
+   結果画面
+----------------------------------------------------- */
+function showResult(reason = "") {
   els.quizCard.classList.add("hidden");
   els.resultCard.classList.remove("hidden");
   stopTimer();
 
-  modeBtns.forEach(b=>b.classList.add("disabled"));
+  // 結果画面中は難易度変更を禁止
+  modeBtns.forEach((b) => b.classList.add("disabled"));
 
   let medal;
-  if (score >= 95) medal = "🥇 金メダル！";
+  if (score >= 95)      medal = "🥇 金メダル！";
   else if (score >= 80) medal = "🥈 銀メダル！";
   else if (score >= 60) medal = "🥉 銅メダル！";
-  else medal = "💪 またチャレンジしよう！";
+  else                  medal = "💪 またチャレンジしよう！";
 
   let msg;
   if (reason === "timeup") {
@@ -550,13 +654,14 @@ function showResult(reason="") {
     msg = "すこしむずかしかったかな？きょうりゅうといっしょにれんしゅうしよう！";
   }
 
-  if (reason === "timeup") els.finalScore.textContent = "じかんぎれ！";
+  if (reason === "timeup")      els.finalScore.textContent = "じかんぎれ！";
   else if (reason === "gameover") els.finalScore.textContent = "ゲームオーバー！";
-  else els.finalScore.textContent = score + "てん";
+  else                           els.finalScore.textContent = score + "てん";
 
-  const historyHtml = answerHistory.map((h,i)=>
-    `Q${i+1}: ${h.a}×${h.b}=${h.ans} ／ あなた：<strong class="${h.ok?'ok':'ng'}">${h.user}</strong>`
-  ).join("<br>");
+  const historyHtml = answerHistory
+    .map((h, i) =>
+      `Q${i + 1}: ${h.a}×${h.b}=${h.ans} ／ あなた：<strong class="${h.ok ? "ok" : "ng"}">${h.user}</strong>`
+    ).join("<br>");
 
   els.summaryList.innerHTML =
     `<div class="medal">${medal}</div><p>${msg}</p><hr>` +
@@ -564,32 +669,45 @@ function showResult(reason="") {
 
   playSE("RESULT");
 
+  // 100点なら花火
   if (score === 100 && typeof confetti === "function") {
-    confetti({particleCount:120,spread:70,origin:{y:0.7}});
-    setTimeout(()=>confetti({particleCount:80,spread:100,origin:{y:0.5}}),400);
+    confetti({ particleCount: 120, spread: 70, origin: { y: 0.7 } });
+    setTimeout(
+      () =>
+        confetti({ particleCount: 80, spread: 100, origin: { y: 0.5 } }),
+      400
+    );
   }
 }
 
-/* 九九表モーダル */
+/* -----------------------------------------------------
+   九九表モーダル
+----------------------------------------------------- */
 function openKukuModal() {
   buildKukuGrid();
   els.tableModal.classList.remove("hidden");
 }
+
 els.kukuFloatingBtn.onclick = openKukuModal;
-els.closeModal.onclick = () => els.tableModal.classList.add("hidden");
+els.closeModal.onclick      = () => els.tableModal.classList.add("hidden");
+
 const modalBackdrop = document.querySelector("#tableModal .modal-backdrop");
 if (modalBackdrop) {
   modalBackdrop.onclick = () => els.tableModal.classList.add("hidden");
 }
 
+/* 九九表を生成（2の段は 2×1, 2×2,... のように列×行） */
 function buildKukuGrid() {
   let html = `<table class="kuku-table"><thead><tr><th class="hd">×</th>`;
-  for (let j=1;j<=9;j++) html += `<th class="hd">${j}</th>`;
+  for (let j = 1; j <= 9; j++) {
+    html += `<th class="hd">${j}</th>`;
+  }
   html += `</tr></thead><tbody>`;
-  for (let i=1;i<=9;i++) {
+
+  for (let i = 1; i <= 9; i++) {
     html += `<tr><th class="hd">${i}</th>`;
-    for (let j=1;j<=9;j++) {
-      html += `<td class="expr">${j}×${i}=${i*j}</td>`;
+    for (let j = 1; j <= 9; j++) {
+      html += `<td class="expr">${j}×${i}=${i * j}</td>`;
     }
     html += `</tr>`;
   }
@@ -597,27 +715,33 @@ function buildKukuGrid() {
   els.kukuGrid.innerHTML = html;
 }
 
-/* 難易度 */
-modeBtns.forEach(btn => {
+/* -----------------------------------------------------
+   難易度切り替え
+----------------------------------------------------- */
+modeBtns.forEach((btn) => {
   btn.onclick = () => {
     initAudio();
     if (btn.classList.contains("disabled")) return;
 
-    modeBtns.forEach(b=>b.classList.remove("active"));
+    modeBtns.forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
 
     const n = Number(btn.dataset.qcount);
     totalQuestions = n;
-    document.body.classList.remove("bg-easy","bg-normal","bg-hard");
+
+    document.body.classList.remove("bg-easy", "bg-normal", "bg-hard");
 
     if (n === 10) {
-      currentBgm = "easy";   challengeMode = false;
+      currentBgm = "easy";
+      challengeMode = false;
       document.body.classList.add("bg-easy");
     } else if (n === 20) {
-      currentBgm = "normal"; challengeMode = false;
+      currentBgm = "normal";
+      challengeMode = false;
       document.body.classList.add("bg-normal");
     } else {
-      currentBgm = "hard";   challengeMode = true;
+      currentBgm = "hard";
+      challengeMode = true;
       document.body.classList.add("bg-hard");
     }
 
@@ -626,10 +750,13 @@ modeBtns.forEach(btn => {
   };
 });
 
-/* BGM トグル */
+/* -----------------------------------------------------
+   BGM ON/OFF トグル
+----------------------------------------------------- */
 els.bgmToggle.onclick = () => {
   initAudio();
   if (!AC || !bgmGain) return;
+
   if (!bgmOn) {
     startBGM();
     els.bgmToggle.textContent = "🔊";
@@ -643,10 +770,13 @@ els.bgmToggle.onclick = () => {
   }
 };
 
-/* 結果画面ボタン */
+/* -----------------------------------------------------
+   結果画面ボタン
+----------------------------------------------------- */
 function enableModes() {
-  modeBtns.forEach(b=>b.classList.remove("disabled"));
+  modeBtns.forEach((b) => b.classList.remove("disabled"));
 }
+
 els.againBtn.onclick = () => {
   initAudio();
   enableModes();
@@ -654,24 +784,32 @@ els.againBtn.onclick = () => {
   els.quizCard.classList.remove("hidden");
   makeQuiz();
 };
+
 els.restartBtn.onclick = () => {
   initAudio();
   enableModes();
-  modeBtns.forEach(b=>b.classList.remove("active"));
-  const easyBtn = [...modeBtns].find(b=>b.dataset.qcount==="10");
+  modeBtns.forEach((b) => b.classList.remove("active"));
+
+  const easyBtn = [...modeBtns].find((b) => b.dataset.qcount === "10");
   if (easyBtn) easyBtn.classList.add("active");
+
   totalQuestions = 10;
   currentBgm = "easy";
   challengeMode = false;
-  document.body.classList.remove("bg-easy","bg-normal","bg-hard");
+
+  document.body.classList.remove("bg-easy", "bg-normal", "bg-hard");
   document.body.classList.add("bg-easy");
+
   if (bgmOn) startBGM();
+
   els.resultCard.classList.add("hidden");
   els.quizCard.classList.remove("hidden");
   makeQuiz();
 };
 
-/* 初期設定 */
+/* -----------------------------------------------------
+   初期化
+----------------------------------------------------- */
 els.bgmToggle.textContent = "🔇";
 els.bgmToggle.classList.add("bgm-off");
 makeQuiz();
