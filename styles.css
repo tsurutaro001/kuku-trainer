@@ -86,41 +86,38 @@ body {
 .dino-area {
   background: #ffffff;
   border-radius: 12px;
-  padding: 10px 0 12px;
-  margin: 8px auto 12px;
+  padding: 8px 0 10px;       /* 少しコンパクトに */
+  margin: 6px auto 10px;    /* 上下マージンも少し削る */
   width: 95%;
   box-shadow: 0 2px 6px #0001;
 }
 
+/* 「きょうりゅう」ラベルは非表示にして縦長感を軽減 */
 .dino-label {
-  font-size: 12px;
-  background: #cdeafe;
-  display: inline-block;
-  padding: 2px 10px;
-  border-radius: 10px;
-  margin-bottom: 4px;
+  display: none;
 }
 
 #dinoEmoji {
-  font-size: 48px;
+  font-size: 44px;
   display: block;
-  margin: 4px 0;
+  margin: 0 0 2px;
 }
 
 #dinoName {
   font-size: 16px;
   font-weight: bold;
+  margin-bottom: 2px;
 }
 
 #dinoMsg {
   font-size: 13px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 /* レベルメーター */
 .star-bar {
   width: 80%;
-  height: 14px;
+  height: 12px;
   background: #eee;
   border-radius: 10px;
   margin: 0 auto;
@@ -336,19 +333,66 @@ body {
   left: 50%;
   transform: translate(-50%, -50%);
   background: white;
-  padding: 18px;
-  border-radius: 10px;
-  width: 90%;
+  padding: 16px 16px 18px;
+  border-radius: 14px;
+  width: 92%;
   max-width: 380px;
   max-height: 80%;
   overflow-y: auto;
 }
 
-#kukuGrid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
+/* 九九テーブル全体 */
+.kuku-table {
+  width: 100%;
+  border-collapse: collapse;
   font-size: 14px;
+}
+
+/* 見出し行と段のラベル */
+.kuku-table th.hd {
+  padding: 4px 2px;
+  font-weight: 700;
+  color: #444;
+}
+
+/* 普通のセル */
+.kuku-table td.expr {
+  padding: 4px 2px;
+}
+
+/* 2段組表示：上に「2×3」、下に「=6」 */
+.expr-main {
+  font-weight: 600;
+  display: block;
+}
+
+.expr-sub {
+  font-size: 11px;
+  color: #555;
+  display: block;
+}
+
+.kuku-table tbody tr:nth-child(odd) {
+  background: #f8fbff;
+}
+
+/* モーダル内のタイトル */
+.modal-content h3 {
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
+/* とじるボタンを押しやすく */
+#closeModal {
+  margin-top: 6px;
+  padding: 10px 26px;
+  font-size: 16px;
+  border-radius: 999px;
+  border: none;
+  background: #7acbff;
+  color: #064061;
+  font-weight: bold;
+  cursor: pointer;
 }
 
 /* ----------------------------------------------------
