@@ -1,6 +1,6 @@
 /* =====================================================
    app.js
-   九九練習アプリ（きょうりゅう・BGM・コンボ付き）
+   九九練習アプリ：BGM / きょうりゅう / コンボ / ちょうむず
 ===================================================== */
 
 let AC = null;
@@ -8,15 +8,15 @@ let bgmOn = false;
 let bgmTimer = null;
 let bgmGain = null;
 let bgmNodes = [];
-let currentBgm = "easy";
+let currentBgm = "easy"; // "easy" | "normal" | "hard" | "night"
 let bgmSpeedFactor = 1.0;
-let bgmSectionIndex = 0; // セクション番号
+let bgmSectionIndex = 0;
 
-let nightMode = false; // タイトル長押しで ON／OFF
+let nightMode = false;   // タイトル長押しで ON（ちょうむず）
 let rainbowFlag = false;
 
 /* -----------------------------------------------------
-   Audio / BGM 初期化
+   Audio 初期化
 ----------------------------------------------------- */
 function initAudio() {
   if (!AC) {
@@ -31,9 +31,12 @@ function initAudio() {
   }
 }
 
-/* 効果音 */
+/* -----------------------------------------------------
+   効果音
+----------------------------------------------------- */
 function playSE(type) {
   if (!AC) return;
+
   const osc = AC.createOscillator();
   const gain = AC.createGain();
   osc.connect(gain);
@@ -48,325 +51,284 @@ function playSE(type) {
     case "OK":
       osc.type = "sine";
       osc.frequency.setValueAtTime(900, AC.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(
-        1500,
-        AC.currentTime + 0.28
-      );
-      gain.gain.setValueAtTime(0.3, AC.currentTime);
-      gain.gain.exponentialRampToValueAtTime(
-        0.001,
-        AC.currentTime + 0.28
-      );
-      end(0.28);
-      return;
-    case "NG":
-      osc.type = "square";
-      osc.frequency.setValueAtTime(220, AC.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(
-        110,
-        AC.currentTime + 0.32
-      );
-      gain.gain.setValueAtTime(0.3, AC.currentTime);
-      gain.gain.exponentialRampToValueAtTime(
-        0.001,
-        AC.currentTime + 0.32
-      );
-      end(0.32);
-      return;
-    case "COMBO2":
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(700, AC.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(
-        1000,
-        AC.currentTime + 0.15
-      );
-      gain.gain.value = 0.2;
-      end(0.15);
-      return;
-    case "COMBO3":
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(900, AC.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(
-        1600,
-        AC.currentTime + 0.22
-      );
-      gain.gain.value = 0.25;
-      end(0.22);
-      return;
-    case "COMBO4":
-      osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(800, AC.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(
-        2000,
-        AC.currentTime + 0.28
-      );
-      gain.gain.value = 0.28;
-      end(0.28);
-      return;
-    case "LEVELUP":
-      osc.type = "square";
-      osc.frequency.setValueAtTime(600, AC.currentTime);
-      osc.frequency.linearRampToValueAtTime(
-        1200,
-        AC.currentTime + 0.25
-      );
+      osc.frequency.exponentialRampToValueAtTime(1500, AC.currentTime + 0.25);
       gain.gain.value = 0.25;
       end(0.25);
       return;
-    case "RESULT":
+
+    case "NG":
       osc.type = "square";
-      osc.frequency.setValueAtTime(800, AC.currentTime);
-      osc.frequency.linearRampToValueAtTime(
-        1200,
-        AC.currentTime + 0.12
-      );
-      osc.frequency.linearRampToValueAtTime(
-        1000,
-        AC.currentTime + 0.24
-      );
+      osc.frequency.setValueAtTime(220, AC.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(110, AC.currentTime + 0.28);
       gain.gain.value = 0.25;
       end(0.28);
       return;
-    case "DINO": // きょうりゅうタップ用
+
+    case "COMBO2":
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(700, AC.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1000, AC.currentTime + 0.16);
+      gain.gain.value = 0.2;
+      end(0.16);
+      return;
+
+    case "COMBO3":
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(900, AC.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1600, AC.currentTime + 0.20);
+      gain.gain.value = 0.25;
+      end(0.20);
+      return;
+
+    case "COMBO4":
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(800, AC.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(2000, AC.currentTime + 0.26);
+      gain.gain.value = 0.28;
+      end(0.26);
+      return;
+
+    case "LEVELUP":
+      osc.type = "square";
+      osc.frequency.setValueAtTime(600, AC.currentTime);
+      osc.frequency.linearRampToValueAtTime(1200, AC.currentTime + 0.25);
+      gain.gain.value = 0.25;
+      end(0.25);
+      return;
+
+    case "RESULT":
+      osc.type = "square";
+      osc.frequency.setValueAtTime(800, AC.currentTime);
+      osc.frequency.linearRampToValueAtTime(1200, AC.currentTime + 0.12);
+      osc.frequency.linearRampToValueAtTime(900, AC.currentTime + 0.24);
+      gain.gain.value = 0.25;
+      end(0.28);
+      return;
+
+    case "DINO": // きょうりゅうタップ
       osc.type = "triangle";
       osc.frequency.setValueAtTime(1000, AC.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(
-        1600,
-        AC.currentTime + 0.18
-      );
-      gain.gain.value = 0.25;
-      end(0.18);
+      osc.frequency.exponentialRampToValueAtTime(1600, AC.currentTime + 0.20);
+      gain.gain.value = 0.3;
+      end(0.20);
       return;
   }
 }
 
 /* -----------------------------------------------------
-   BGM パターン（各難易度 3 セクション）
+   🎵 BGMセクション
 ----------------------------------------------------- */
-// やさしい
-const BGM_EASY_SECTIONS = [
+function makeTone(freq, len) {
+  return { freq, len };
+}
+
+/* --- やさしい（明るめ） --- */
+const BGM_EASY = [
   {
     melody: [
-      { freq: 523.25, len: 0.25 },
-      { freq: 587.33, len: 0.25 },
-      { freq: 659.25, len: 0.25 },
-      { freq: 783.99, len: 0.25 },
-      { freq: 659.25, len: 0.25 },
-      { freq: 587.33, len: 0.25 },
-      { freq: 523.25, len: 0.25 },
-      { freq: 0, len: 0.25 }
+      makeTone(523, 0.25), makeTone(587, 0.25),
+      makeTone(659, 0.25), makeTone(783, 0.25),
+      makeTone(659, 0.25), makeTone(587, 0.25),
+      makeTone(523, 0.25), makeTone(0,   0.25)
     ],
     bass: [
-      { freq: 130.81, len: 0.5 },
-      { freq: 0, len: 0.25 },
-      { freq: 98.0, len: 0.5 },
-      { freq: 0, len: 0.25 }
+      makeTone(130, 0.5), makeTone(0, 0.25),
+      makeTone(98,  0.5), makeTone(0, 0.25)
     ]
   },
   {
     melody: [
-      { freq: 587.33, len: 0.25 },
-      { freq: 659.25, len: 0.25 },
-      { freq: 783.99, len: 0.25 },
-      { freq: 880.0, len: 0.25 },
-      { freq: 783.99, len: 0.25 },
-      { freq: 659.25, len: 0.25 },
-      { freq: 587.33, len: 0.25 },
-      { freq: 0, len: 0.25 }
+      makeTone(587, 0.25), makeTone(659, 0.25),
+      makeTone(783, 0.25), makeTone(880, 0.25),
+      makeTone(783, 0.25), makeTone(659, 0.25),
+      makeTone(587, 0.25), makeTone(0,   0.25)
     ],
     bass: [
-      { freq: 98.0, len: 0.5 },
-      { freq: 0, len: 0.25 },
-      { freq: 146.83, len: 0.5 },
-      { freq: 0, len: 0.25 }
+      makeTone(98,  0.5), makeTone(0, 0.25),
+      makeTone(146, 0.5), makeTone(0, 0.25)
     ]
   },
   {
     melody: [
-      { freq: 659.25, len: 0.25 },
-      { freq: 523.25, len: 0.25 },
-      { freq: 587.33, len: 0.25 },
-      { freq: 659.25, len: 0.25 },
-      { freq: 587.33, len: 0.25 },
-      { freq: 523.25, len: 0.25 },
-      { freq: 440.0, len: 0.25 },
-      { freq: 0, len: 0.25 }
+      makeTone(659, 0.25), makeTone(523, 0.25),
+      makeTone(587, 0.25), makeTone(659, 0.25),
+      makeTone(587, 0.25), makeTone(523, 0.25),
+      makeTone(440, 0.25), makeTone(0,   0.25)
     ],
     bass: [
-      { freq: 130.81, len: 0.5 },
-      { freq: 0, len: 0.25 },
-      { freq: 130.81, len: 0.5 },
-      { freq: 0, len: 0.25 }
+      makeTone(130, 0.5), makeTone(0, 0.25),
+      makeTone(130, 0.5), makeTone(0, 0.25)
     ]
   }
 ];
 
-// ふつう
-const BGM_NORMAL_SECTIONS = [
+/* --- ふつう（テンポアップ） --- */
+const BGM_NORMAL = [
   {
     melody: [
-      { freq: 659.25, len: 0.2 },
-      { freq: 783.99, len: 0.2 },
-      { freq: 987.77, len: 0.2 },
-      { freq: 1046.5, len: 0.2 },
-      { freq: 987.77, len: 0.2 },
-      { freq: 783.99, len: 0.2 },
-      { freq: 659.25, len: 0.2 },
-      { freq: 0, len: 0.2 }
+      makeTone(659, 0.20), makeTone(783, 0.20),
+      makeTone(987, 0.20), makeTone(1046,0.20),
+      makeTone(987, 0.20), makeTone(783, 0.20),
+      makeTone(659, 0.20), makeTone(0,   0.20)
     ],
     bass: [
-      { freq: 130.81, len: 0.4 },
-      { freq: 0, len: 0.1 },
-      { freq: 196.0, len: 0.4 },
-      { freq: 0, len: 0.1 }
+      makeTone(130, 0.4), makeTone(0, 0.1),
+      makeTone(196, 0.4), makeTone(0, 0.1)
     ]
   },
   {
     melody: [
-      { freq: 523.25, len: 0.2 },
-      { freq: 587.33, len: 0.2 },
-      { freq: 659.25, len: 0.2 },
-      { freq: 783.99, len: 0.2 },
-      { freq: 659.25, len: 0.2 },
-      { freq: 587.33, len: 0.2 },
-      { freq: 523.25, len: 0.2 },
-      { freq: 0, len: 0.2 }
+      makeTone(523, 0.20), makeTone(587, 0.20),
+      makeTone(659, 0.20), makeTone(783, 0.20),
+      makeTone(659, 0.20), makeTone(587, 0.20),
+      makeTone(523, 0.20), makeTone(0,   0.20)
     ],
     bass: [
-      { freq: 196.0, len: 0.4 },
-      { freq: 0, len: 0.1 },
-      { freq: 146.83, len: 0.4 },
-      { freq: 0, len: 0.1 }
+      makeTone(196, 0.4), makeTone(0, 0.1),
+      makeTone(146, 0.4), makeTone(0, 0.1)
     ]
   },
   {
     melody: [
-      { freq: 659.25, len: 0.2 },
-      { freq: 698.46, len: 0.2 },
-      { freq: 783.99, len: 0.2 },
-      { freq: 987.77, len: 0.2 },
-      { freq: 783.99, len: 0.2 },
-      { freq: 698.46, len: 0.2 },
-      { freq: 659.25, len: 0.2 },
-      { freq: 0, len: 0.2 }
+      makeTone(659, 0.20), makeTone(698, 0.20),
+      makeTone(783, 0.20), makeTone(987, 0.20),
+      makeTone(783, 0.20), makeTone(698, 0.20),
+      makeTone(659, 0.20), makeTone(0,   0.20)
     ],
     bass: [
-      { freq: 196.0, len: 0.4 },
-      { freq: 0, len: 0.1 },
-      { freq: 196.0, len: 0.4 },
-      { freq: 0, len: 0.1 }
+      makeTone(196, 0.4), makeTone(0, 0.1),
+      makeTone(196, 0.4), makeTone(0, 0.1)
     ]
   }
 ];
 
-// ちょうせん
-const BGM_HARD_SECTIONS = [
+/* --- ちょうせん（緊張感） --- */
+const BGM_HARD = [
   {
     melody: [
-      { freq: 440.0, len: 0.15 },
-      { freq: 523.25, len: 0.15 },
-      { freq: 587.33, len: 0.15 },
-      { freq: 659.25, len: 0.15 },
-      { freq: 587.33, len: 0.15 },
-      { freq: 523.25, len: 0.15 },
-      { freq: 440.0, len: 0.15 },
-      { freq: 0, len: 0.15 }
+      makeTone(440, 0.15), makeTone(523, 0.15),
+      makeTone(587, 0.15), makeTone(659, 0.15),
+      makeTone(587, 0.15), makeTone(523, 0.15),
+      makeTone(440, 0.15), makeTone(0,   0.15)
     ],
     bass: [
-      { freq: 110.0, len: 0.3 },
-      { freq: 0, len: 0.1 },
-      { freq: 146.83, len: 0.3 },
-      { freq: 0, len: 0.1 }
+      makeTone(110, 0.3), makeTone(0, 0.1),
+      makeTone(146, 0.3), makeTone(0, 0.1)
     ]
   },
   {
     melody: [
-      { freq: 659.25, len: 0.15 },
-      { freq: 698.46, len: 0.15 },
-      { freq: 880.0, len: 0.15 },
-      { freq: 987.77, len: 0.15 },
-      { freq: 880.0, len: 0.15 },
-      { freq: 698.46, len: 0.15 },
-      { freq: 659.25, len: 0.15 },
-      { freq: 0, len: 0.15 }
+      makeTone(659, 0.15), makeTone(698, 0.15),
+      makeTone(880, 0.15), makeTone(987, 0.15),
+      makeTone(880, 0.15), makeTone(698, 0.15),
+      makeTone(659, 0.15), makeTone(0,   0.15)
     ],
     bass: [
-      { freq: 110.0, len: 0.3 },
-      { freq: 0, len: 0.1 },
-      { freq: 196.0, len: 0.3 },
-      { freq: 0, len: 0.1 }
+      makeTone(110, 0.3), makeTone(0, 0.1),
+      makeTone(196, 0.3), makeTone(0, 0.1)
     ]
   },
   {
     melody: [
-      { freq: 523.25, len: 0.15 },
-      { freq: 587.33, len: 0.15 },
-      { freq: 659.25, len: 0.15 },
-      { freq: 783.99, len: 0.15 },
-      { freq: 659.25, len: 0.15 },
-      { freq: 587.33, len: 0.15 },
-      { freq: 523.25, len: 0.15 },
-      { freq: 0, len: 0.15 }
+      makeTone(523, 0.15), makeTone(587, 0.15),
+      makeTone(659, 0.15), makeTone(783, 0.15),
+      makeTone(659, 0.15), makeTone(587, 0.15),
+      makeTone(523, 0.15), makeTone(0,   0.15)
     ],
     bass: [
-      { freq: 146.83, len: 0.3 },
-      { freq: 0, len: 0.1 },
-      { freq: 196.0, len: 0.3 },
-      { freq: 0, len: 0.1 }
+      makeTone(146, 0.3), makeTone(0, 0.1),
+      makeTone(196, 0.3), makeTone(0, 0.1)
     ]
   }
 ];
 
-/* BGM 停止 */
+/* --- 👻 ちょうむず（夜モード）幽霊屋敷風 --- */
+const BGM_NIGHT = [
+  {
+    melody: [
+      makeTone(392, 0.30), makeTone(0,   0.10), // G4
+      makeTone(370, 0.25), makeTone(0,   0.10), // F#
+      makeTone(349, 0.20), makeTone(0,   0.20), // F
+      makeTone(311, 0.30), makeTone(0,   0.10)  // Eb
+    ],
+    bass: [
+      makeTone(98,  0.4),  makeTone(0, 0.2),
+      makeTone(82,  0.4),  makeTone(0, 0.2)
+    ]
+  },
+  {
+    melody: [
+      makeTone(311, 0.25), makeTone(0,   0.15),
+      makeTone(262, 0.20), makeTone(0,   0.15),
+      makeTone(233, 0.20), makeTone(0,   0.20),
+      makeTone(262, 0.25), makeTone(0,   0.15)
+    ],
+    bass: [
+      makeTone(82,  0.4),  makeTone(0, 0.1),
+      makeTone(110, 0.4),  makeTone(0, 0.1)
+    ]
+  },
+  {
+    melody: [
+      makeTone(233, 0.25), makeTone(0,   0.15),
+      makeTone(208, 0.25), makeTone(0,   0.15),
+      makeTone(196, 0.25), makeTone(0,   0.15),
+      makeTone(233, 0.25), makeTone(0,   0.15)
+    ],
+    bass: [
+      makeTone(98,  0.4),  makeTone(0, 0.1),
+      makeTone(98,  0.4),  makeTone(0, 0.1)
+    ]
+  }
+];
+
+/* -----------------------------------------------------
+   BGM 停止
+----------------------------------------------------- */
 function stopBGM() {
   if (!AC || !bgmGain) return;
   bgmOn = false;
+
   if (bgmTimer) {
     clearInterval(bgmTimer);
     bgmTimer = null;
   }
   bgmGain.gain.setValueAtTime(0, AC.currentTime);
+
   bgmNodes.forEach((o) => {
-    try {
-      o.stop();
-    } catch (e) {}
+    try { o.stop(); } catch (e) {}
   });
   bgmNodes = [];
 }
 
-/* 1 セクション分スケジュール */
+/* -----------------------------------------------------
+   1小節分をスケジュール
+----------------------------------------------------- */
 function scheduleBgmBar() {
   if (!AC || !bgmOn || !bgmGain) return;
 
-  let SECTIONS;
-  if (currentBgm === "easy") SECTIONS = BGM_EASY_SECTIONS;
-  else if (currentBgm === "normal") SECTIONS = BGM_NORMAL_SECTIONS;
-  else SECTIONS = BGM_HARD_SECTIONS;
+  let SECT;
+  if (currentBgm === "easy")   SECT = BGM_EASY;
+  else if (currentBgm === "normal") SECT = BGM_NORMAL;
+  else if (currentBgm === "hard")   SECT = BGM_HARD;
+  else                             SECT = BGM_NIGHT;
 
-  const section = SECTIONS[bgmSectionIndex % SECTIONS.length];
-  const MELODY = section.melody;
-  const BASS = section.bass;
+  const s = SECT[bgmSectionIndex % SECT.length];
+  const MELODY = s.melody;
+  const BASS   = s.bass;
 
   const now = AC.currentTime;
-  let tMel = now,
-    tBass = now;
-  const volMel = 0.07,
-    volBass = 0.04;
+  let tMel = now, tBass = now;
 
   MELODY.forEach((n) => {
     const len = n.len * bgmSpeedFactor;
     if (n.freq > 0) {
       const o = AC.createOscillator();
       const g = AC.createGain();
-      o.connect(g);
-      g.connect(bgmGain);
-      o.type = "square";
+      o.connect(g); g.connect(bgmGain);
+      o.type = (currentBgm === "night" ? "triangle" : "square");
       o.frequency.setValueAtTime(n.freq, tMel);
-      g.gain.setValueAtTime(volMel, tMel);
-      g.gain.exponentialRampToValueAtTime(
-        0.0001,
-        tMel + len * 0.9
-      );
+      g.gain.value = (currentBgm === "night" ? 0.15 : 0.07);
       o.start(tMel);
       o.stop(tMel + len);
       bgmNodes.push(o);
@@ -379,15 +341,10 @@ function scheduleBgmBar() {
     if (n.freq > 0) {
       const o = AC.createOscillator();
       const g = AC.createGain();
-      o.connect(g);
-      g.connect(bgmGain);
-      o.type = "square";
+      o.connect(g); g.connect(bgmGain);
+      o.type = (currentBgm === "night" ? "sine" : "square");
       o.frequency.setValueAtTime(n.freq, tBass);
-      g.gain.setValueAtTime(volBass, tBass);
-      g.gain.exponentialRampToValueAtTime(
-        0.0001,
-        tBass + len * 0.9
-      );
+      g.gain.value = (currentBgm === "night" ? 0.10 : 0.04);
       o.start(tBass);
       o.stop(tBass + len);
       bgmNodes.push(o);
@@ -398,24 +355,26 @@ function scheduleBgmBar() {
   bgmSectionIndex++;
 }
 
-/* BGM 開始（AudioContext.resume を待ってから開始） */
+/* -----------------------------------------------------
+   BGM 開始
+----------------------------------------------------- */
 function startBGM() {
   initAudio();
   if (!AC || !bgmGain) return;
 
   const doStart = () => {
-    stopBGM(); // 前回のタイマー等を完全停止
-    bgmGain.gain.setValueAtTime(1.0, AC.currentTime);
+    stopBGM();
     bgmOn = true;
+    bgmGain.gain.value = 1.0;
     bgmSectionIndex = 0;
 
-    let SECTIONS;
-    if (currentBgm === "easy") SECTIONS = BGM_EASY_SECTIONS;
-    else if (currentBgm === "normal") SECTIONS = BGM_NORMAL_SECTIONS;
-    else SECTIONS = BGM_HARD_SECTIONS;
+    let SECT;
+    if (currentBgm === "easy")   SECT = BGM_EASY;
+    else if (currentBgm === "normal") SECT = BGM_NORMAL;
+    else if (currentBgm === "hard")   SECT = BGM_HARD;
+    else                             SECT = BGM_NIGHT;
 
-    const first = SECTIONS[0];
-    const barSec = first.melody.reduce(
+    const barSec = SECT[0].melody.reduce(
       (s, n) => s + n.len * bgmSpeedFactor,
       0
     );
@@ -431,7 +390,7 @@ function startBGM() {
   }
 }
 
-/* タブの出入りで BGM を安定させる */
+/* タブ復帰でBGM安定 */
 document.addEventListener("visibilitychange", () => {
   if (!AC || !bgmGain) return;
   if (document.visibilityState === "visible") {
@@ -554,7 +513,7 @@ function runChallengeCountdown() {
 /* -----------------------------------------------------
    問題生成
    通常：1〜9×1〜9
-   夜モード：10〜19×1〜9（ちょうむず）
+   夜モード（ちょうむず）：10〜19×1〜9
 ----------------------------------------------------- */
 function makeQuiz() {
   const all = [];
@@ -599,7 +558,7 @@ function makeQuiz() {
 }
 
 /* -----------------------------------------------------
-   UI 更新
+   UI更新
 ----------------------------------------------------- */
 function updateUI() {
   els.qNo.textContent = idx + 1;
@@ -626,7 +585,7 @@ function setKeypadEnabled(enabled) {
 }
 
 /* -----------------------------------------------------
-   キーパッド入力
+   キーパッド入力（夜モードは3桁まで）
 ----------------------------------------------------- */
 keys.forEach((btn) => {
   const t = btn.textContent.trim();
@@ -634,7 +593,8 @@ keys.forEach((btn) => {
     btn.onclick = () => {
       initAudio();
       if (btn.classList.contains("disabled")) return;
-      if (currentInput.length < 2) {
+      const maxLen = nightMode ? 3 : 2;
+      if (currentInput.length < maxLen) {
         currentInput += t;
         renderAnswer();
       }
@@ -672,10 +632,7 @@ els.submitBtn.onclick = () => {
   const ok = user === ans;
 
   els.answerBox.classList.add("answer-pop");
-  setTimeout(
-    () => els.answerBox.classList.remove("answer-pop"),
-    180
-  );
+  setTimeout(() => els.answerBox.classList.remove("answer-pop"), 180);
 
   if (ok) {
     correctCount++;
@@ -720,14 +677,14 @@ els.submitBtn.onclick = () => {
 };
 
 /* -----------------------------------------------------
-   コンボ表示＆虹きょうりゅう
+   コンボ表示＆BGMスピード
 ----------------------------------------------------- */
 function updateComboUI() {
   const badge = els.comboBadge;
 
   if (combo >= 2) {
     badge.classList.remove("combo-show", "combo-hot");
-    void badge.offsetWidth;
+    void badge.offsetWidth; // 再トリガー
 
     badge.textContent = `${combo}コンボ！🔥`;
     if (combo >= 10) badge.classList.add("combo-hot");
@@ -751,7 +708,6 @@ function updateComboUI() {
   }
 }
 
-/* コンボに応じた BGM 速度 */
 function updateComboBgmSpeed() {
   const old = bgmSpeedFactor;
   if (combo >= 8) bgmSpeedFactor = 0.6;
@@ -762,7 +718,7 @@ function updateComboBgmSpeed() {
 }
 
 /* -----------------------------------------------------
-   メッセージ
+   メッセージ表示
 ----------------------------------------------------- */
 function feedback(msg, ok) {
   els.fx.className = "fx";
@@ -803,8 +759,8 @@ function updateBuddy() {
   if (stage === 2) emoji = "🐊";
   else if (stage === 3) emoji = "🦖";
   else if (stage === 4) emoji = "🌋🦖🦕🌋";
-
   if (nightMode) emoji = "🌙🦖";
+
   els.dinoEmoji.textContent = emoji;
   els.dinoName.textContent = `レベル ${stage}`;
 
@@ -832,18 +788,17 @@ function updateBuddy() {
   else els.dinoArea.classList.add("skin-super");
 }
 
-/* きょうりゅうをタップするとジャンプ＋効果音 */
+/* きょうりゅうタップ：ジャンプ＋効果音 */
 els.dinoEmoji.addEventListener("click", () => {
   initAudio();
   els.dinoEmoji.classList.add("dino-jump");
   playSE("DINO");
-  setTimeout(
-    () => els.dinoEmoji.classList.remove("dino-jump"),
-    400
-  );
+  setTimeout(() => els.dinoEmoji.classList.remove("dino-jump"), 400);
 });
 
-/* スター演出 */
+/* -----------------------------------------------------
+   スター演出
+----------------------------------------------------- */
 function spawnStar() {
   const star = document.createElement("div");
   star.textContent = "⭐";
@@ -1014,12 +969,16 @@ function buildKukuGrid() {
 }
 
 /* -----------------------------------------------------
-   難易度切り替え
+   難易度切り替え（押したら夜モード解除）
 ----------------------------------------------------- */
 modeBtns.forEach((btn) => {
   btn.onclick = () => {
     initAudio();
     if (btn.classList.contains("disabled")) return;
+
+    // 夜モード解除（通常モードへ戻す）
+    nightMode = false;
+    document.body.classList.remove("night-mode");
 
     modeBtns.forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
@@ -1027,19 +986,18 @@ modeBtns.forEach((btn) => {
     const n = Number(btn.dataset.qcount);
     totalQuestions = n;
 
+    challengeMode = (n === 30);
+
     document.body.classList.remove("bg-easy", "bg-normal", "bg-hard");
 
     if (n === 10) {
       currentBgm = "easy";
-      challengeMode = false;
       document.body.classList.add("bg-easy");
     } else if (n === 20) {
       currentBgm = "normal";
-      challengeMode = false;
       document.body.classList.add("bg-normal");
     } else {
       currentBgm = "hard";
-      challengeMode = true;
       document.body.classList.add("bg-hard");
     }
 
@@ -1091,11 +1049,14 @@ els.restartBtn.onclick = () => {
 };
 
 /* -----------------------------------------------------
-   タイトルタップ：完全リセット
-   長押し：夜モード（10のくらい×1〜9）
+   完全リセット（やさしい＋通常モードに戻す）
 ----------------------------------------------------- */
 function fullResetToEasy() {
   enableModes();
+
+  // 夜モード解除
+  nightMode = false;
+  document.body.classList.remove("night-mode");
 
   modeBtns.forEach((b) => b.classList.remove("active"));
   const easyBtn = [...modeBtns].find(
@@ -1116,18 +1077,27 @@ function fullResetToEasy() {
   makeQuiz();
 }
 
+/* -----------------------------------------------------
+   夜モード切り替え（タイトル長押し）
+----------------------------------------------------- */
 function toggleNightMode() {
   nightMode = !nightMode;
   if (nightMode) {
     document.body.classList.add("night-mode");
+    currentBgm = "night";
   } else {
     document.body.classList.remove("night-mode");
+    // 現在の問題数から通常BGMに戻す
+    if (totalQuestions === 10) currentBgm = "easy";
+    else if (totalQuestions === 20) currentBgm = "normal";
+    else currentBgm = "hard";
   }
+  if (bgmOn) startBGM();
   makeQuiz();
   updateBuddy();
 }
 
-// タイトルの短押し / 長押し
+/* タイトルの短押し / 長押し */
 (() => {
   let pressTimer = null;
   let longPressed = false;
@@ -1138,8 +1108,8 @@ function toggleNightMode() {
     if (pressTimer) clearTimeout(pressTimer);
     pressTimer = setTimeout(() => {
       longPressed = true;
-      toggleNightMode();
-    }, 900);
+      toggleNightMode(); // ちょうむずON/OFF
+    }, 900); // 0.9秒以上で長押し扱い
   };
 
   const end = (e) => {
@@ -1148,6 +1118,7 @@ function toggleNightMode() {
       pressTimer = null;
     }
     if (!longPressed) {
+      // 通常タップ → 完全リセット
       fullResetToEasy();
     }
   };
