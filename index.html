@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>かけざん れんしゅう</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- CSS ファイル名は styles.css -->
   <link rel="stylesheet" href="styles.css">
   <!-- 花火（100点時）用の confetti ライブラリ -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
@@ -21,6 +22,17 @@
         <button class="mode-btn" data-qcount="30">ちょうせん</button>
       </div>
       <button id="bgmToggle" aria-label="BGM 切り替え">🔇</button>
+    </div>
+
+    <!-- きょうりゅうエリア（難易度の下） -->
+    <div class="dino-area skin-forest" id="dinoArea">
+      <div class="dino-label">きょうりゅう</div>
+      <span id="dinoEmoji">🦎</span>
+      <div id="dinoName">レベル 1</div>
+      <div id="dinoMsg">がんばろう！</div>
+      <div class="star-bar">
+        <div id="starFill"></div>
+      </div>
     </div>
 
     <!-- タイマー（ちょうせん用） -->
@@ -65,17 +77,6 @@
 
       <!-- 送信ボタン -->
       <button id="submitBtn">こたえあわせ</button>
-
-      <!-- 恐竜エリア -->
-      <div class="dino-area skin-forest" id="dinoArea">
-        <div class="dino-label">きょうりゅう</div>
-        <span id="dinoEmoji">🦎</span>
-        <div id="dinoName">レベル 1</div>
-        <div id="dinoMsg">がんばろう！</div>
-        <div class="star-bar">
-          <div id="starFill"></div>
-        </div>
-      </div>
     </div>
 
     <!-- 結果カード -->
