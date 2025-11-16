@@ -1,6 +1,12 @@
 /* ----------------------------------------------------
-   基本レイアウト
+   全体（スクロール制御）
 ---------------------------------------------------- */
+html, body {
+  height: 100%;
+  overscroll-behavior-y: contain;
+  overflow: hidden; /* 画面全体がスクロールしすぎないように */
+}
+
 body {
   font-family: "Kosugi Maru", "Noto Sans JP", sans-serif;
   margin: 0;
@@ -15,6 +21,10 @@ body {
   max-width: 480px;
   margin: 0 auto;
   padding: 12px 12px 80px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto; /* 必要な場合のみ縦スクロール */
 }
 
 /* タイトル */
@@ -23,7 +33,13 @@ body {
   font-weight: 800;
   color: #0c568d;
   margin: 6px 0 12px;
+  cursor: pointer; /* クリックできることを示す */
 }
+
+/* 背景色（難易度ごと） */
+body.bg-easy   { background: #f6fcff; }
+body.bg-normal { background: #fff8f2; }
+body.bg-hard   { background: #fff4f4; }
 
 /* ----------------------------------------------------
    トップコントロール（難易度＋BGM）
@@ -81,13 +97,13 @@ body {
 }
 
 /* ----------------------------------------------------
-   きょうりゅうカード（移動後）
+   きょうりゅうカード
 ---------------------------------------------------- */
 .dino-area {
   background: #ffffff;
   border-radius: 12px;
-  padding: 8px 0 10px;       /* 少しコンパクトに */
-  margin: 6px auto 10px;    /* 上下マージンも少し削る */
+  padding: 8px 0 10px;
+  margin: 6px auto 10px;
   width: 95%;
   box-shadow: 0 2px 6px #0001;
 }
@@ -136,7 +152,7 @@ body {
 .skin-forest { background-image: linear-gradient(#d7f7dc, #eafff9); }
 .skin-desert { background-image: linear-gradient(#fbe8b5, #ffeecd); }
 .skin-volcano { background-image: linear-gradient(#ffd1d1, #ffeaea); }
-.skin-super { background-image: linear-gradient(#ffbbbb, #ffdddd); }
+.skin-super   { background-image: linear-gradient(#ffbbbb, #ffdddd); }
 
 /* ----------------------------------------------------
    問題カード
@@ -161,12 +177,12 @@ body {
   margin-bottom: 4px;
 }
 
-/* 問題 */
+/* 問題（少しコンパクトに） */
 .problem {
   font-size: 32px;
   font-weight: 800;
   color: #24445e;
-  margin: 18px 0 6px;
+  margin: 14px 0 4px;
 }
 
 #answerBox {
@@ -232,7 +248,7 @@ body {
 .keypad {
   width: 100%;
   max-width: 380px;
-  margin: 8px auto 10px;
+  margin: 6px auto 6px; /* 上下を少し詰める */
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
@@ -246,6 +262,7 @@ body {
   cursor: pointer;
   background: #a6d7ff;
   transition: 0.15s;
+  touch-action: manipulation; /* 連打でスクロールしないように */
 }
 
 .key:active {
@@ -264,13 +281,13 @@ body {
 }
 
 /* ----------------------------------------------------
-   こたえあわせボタン
+   こたえあわせボタン（少し大きく）
 ---------------------------------------------------- */
 #submitBtn {
-  margin-top: 6px;
-  padding: 12px 20px;
-  font-size: 18px;
-  border-radius: 10px;
+  margin-top: 4px;
+  padding: 16px 22px;    /* ここを増やして大きく */
+  font-size: 20px;       /* 文字も少し大きく */
+  border-radius: 12px;
   border: none;
   background: #66ccff;
   color: #003f5e;
@@ -341,26 +358,23 @@ body {
   overflow-y: auto;
 }
 
-/* 九九テーブル全体 */
+/* 九九テーブル */
 .kuku-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
 }
 
-/* 見出し行と段のラベル */
 .kuku-table th.hd {
   padding: 4px 2px;
   font-weight: 700;
   color: #444;
 }
 
-/* 普通のセル */
 .kuku-table td.expr {
   padding: 4px 2px;
 }
 
-/* 2段組表示：上に「2×3」、下に「=6」 */
 .expr-main {
   font-weight: 600;
   display: block;
@@ -376,10 +390,18 @@ body {
   background: #f8fbff;
 }
 
-/* モーダル内のタイトル */
+/* モーダル内タイトル */
 .modal-content h3 {
   margin-top: 4px;
   margin-bottom: 8px;
+}
+
+/* 九九ヒント表示 */
+.kuku-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #555;
+  display: none;
 }
 
 /* とじるボタンを押しやすく */
@@ -409,4 +431,35 @@ body {
   border-radius: 999px;
   cursor: pointer;
   box-shadow: 0 4px 7px #0003;
+}
+
+/* ----------------------------------------------------
+   夜モード（タイトル長押し）
+---------------------------------------------------- */
+body.night-mode {
+  background: radial-gradient(circle at top, #1f2937, #020617);
+  color: #e5e7eb;
+}
+
+body.night-mode .card {
+  background: #020617;
+  color: #e5e7eb;
+}
+
+body.night-mode .dino-area {
+  background: #020617;
+}
+
+body.night-mode .mode-btn {
+  background: #111827;
+  color: #e5e7eb;
+}
+
+body.night-mode .mode-btn.active {
+  background: #2563eb;
+}
+
+body.night-mode #submitBtn {
+  background: #2563eb;
+  color: #e5e7eb;
 }
