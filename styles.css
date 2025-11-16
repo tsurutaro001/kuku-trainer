@@ -1,7 +1,8 @@
 /* ----------------------------------------------------
    全体（スクロール制御）
 ---------------------------------------------------- */
-html, body {
+html,
+body {
   height: 100%;
   overscroll-behavior-y: contain;
   overflow: hidden; /* 画面全体がスクロールしすぎないように */
@@ -37,9 +38,15 @@ body {
 }
 
 /* 背景色（難易度ごと） */
-body.bg-easy   { background: #f6fcff; }
-body.bg-normal { background: #fff8f2; }
-body.bg-hard   { background: #fff4f4; }
+body.bg-easy {
+  background: #f6fcff;
+}
+body.bg-normal {
+  background: #fff8f2;
+}
+body.bg-hard {
+  background: #fff4f4;
+}
 
 /* ----------------------------------------------------
    トップコントロール（難易度＋BGM）
@@ -108,7 +115,7 @@ body.bg-hard   { background: #fff4f4; }
   box-shadow: 0 2px 6px #0001;
 }
 
-/* 「きょうりゅう」ラベルは非表示にして縦長感を軽減 */
+/* 非表示にして縦長感を軽減 */
 .dino-label {
   display: none;
 }
@@ -149,10 +156,18 @@ body.bg-hard   { background: #fff4f4; }
 }
 
 /* 背景テーマ（スキン） */
-.skin-forest { background-image: linear-gradient(#d7f7dc, #eafff9); }
-.skin-desert { background-image: linear-gradient(#fbe8b5, #ffeecd); }
-.skin-volcano { background-image: linear-gradient(#ffd1d1, #ffeaea); }
-.skin-super   { background-image: linear-gradient(#ffbbbb, #ffdddd); }
+.skin-forest {
+  background-image: linear-gradient(#d7f7dc, #eafff9);
+}
+.skin-desert {
+  background-image: linear-gradient(#fbe8b5, #ffeecd);
+}
+.skin-volcano {
+  background-image: linear-gradient(#ffd1d1, #ffeaea);
+}
+.skin-super {
+  background-image: linear-gradient(#ffbbbb, #ffdddd);
+}
 
 /* ----------------------------------------------------
    問題カード
@@ -175,6 +190,16 @@ body.bg-hard   { background: #fff4f4; }
   font-size: 13px;
   color: #666;
   margin-bottom: 4px;
+}
+
+/* カウントダウン・タイマー表示 */
+#timeDisplay {
+  font-size: 16px;
+  margin: 4px 0;
+}
+#timeDisplay.countdown {
+  font-size: 28px;
+  font-weight: bold;
 }
 
 /* 問題（少しコンパクトに） */
@@ -200,9 +225,15 @@ body.bg-hard   { background: #fff4f4; }
 }
 
 @keyframes ans-pop {
-  0% { transform: scale(1); }
-  40% { transform: scale(1.25); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 /* 正解／不正解メッセージ */
@@ -233,9 +264,17 @@ body.bg-hard   { background: #fff4f4; }
 }
 
 @keyframes comboPop {
-  0% { transform: scale(0.4); opacity:0; }
-  50% { transform: scale(1.15); opacity:1; }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .combo-hot {
@@ -274,7 +313,8 @@ body.bg-hard   { background: #fff4f4; }
   pointer-events: none;
 }
 
-#keyClr, #keyBk {
+#keyClr,
+#keyBk {
   background: white;
   border: 2px solid #ff5757;
   color: #ff5757;
@@ -285,8 +325,8 @@ body.bg-hard   { background: #fff4f4; }
 ---------------------------------------------------- */
 #submitBtn {
   margin-top: 4px;
-  padding: 16px 22px;    /* ここを増やして大きく */
-  font-size: 20px;       /* 文字も少し大きく */
+  padding: 16px 22px;
+  font-size: 20px;
   border-radius: 12px;
   border: none;
   background: #66ccff;
@@ -431,6 +471,56 @@ body.bg-hard   { background: #fff4f4; }
   border-radius: 999px;
   cursor: pointer;
   box-shadow: 0 4px 7px #0003;
+}
+
+/* ----------------------------------------------------
+   アニメーション（スター／きょうりゅう）
+---------------------------------------------------- */
+@keyframes starPop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  40% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+}
+
+.dino-bounce {
+  animation: dinoBounce 0.6s ease-out;
+}
+
+@keyframes dinoBounce {
+  0% {
+    transform: translateY(0);
+  }
+  35% {
+    transform: translateY(-8px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.dino-jump {
+  animation: dinoJump 0.4s ease-out;
+}
+
+@keyframes dinoJump {
+  0% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0);
+  }
 }
 
 /* ----------------------------------------------------
