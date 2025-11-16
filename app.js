@@ -81,12 +81,7 @@ function playSE(type) {
       return;
 
     case "COMBO4":
-      osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(800, AC.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(2000, AC.currentTime + 0.26);
-      gain.gain.value = 0.28;
-      end(0.26);
-      return;
+      osc.type = "sawtooth
 
     case "LEVELUP":
       osc.type = "square";
