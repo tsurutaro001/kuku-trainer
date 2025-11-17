@@ -1,10 +1,14 @@
 /* =====================================================
    app.js
-   九九練習アプリ：BGM / きょうりゅう / コンボ / 夜モード
+   九九れんしゅうアプリ：
+   BGM / きょうりゅう / コンボ / 夜モード / 九九Tips
 ===================================================== */
 
+// ------------------------------
+// Audio / BGM 状態
+// ------------------------------
 let AC = null;
-let bgmOn = false;
+let bgmState = "off"; // "off" | "starting" | "playing"
 let bgmTimer = null;
 let bgmGain = null;
 let bgmNodes = [];
@@ -12,450 +16,51 @@ let currentBgm = "easy"; // "easy" | "normal" | "hard" | "night"
 let bgmSpeedFactor = 1.0;
 let bgmSectionIndex = 0;
 
+// ------------------------------
+// ゲーム状態
+// ------------------------------
 let nightMode = false;      // タイトル長押しでON（ちょうむず）
-let legendaryFlag = false;  // でんせつのドラゴン登場フラグ
+let legendaryFlag = false;  // でんせつドラゴン登場フラグ
 
-/* -----------------------------------------------------
-   Audio 初期化
------------------------------------------------------ */
-function initAudio() {
-  if (!AC) {
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    if (!Ctx) return;
-    AC = new Ctx();
-  }
-  if (!bgmGain && AC) {
-    bgmGain = AC.createGain();
-    bgmGain.gain.value = 1.0;
-    bgmGain.connect(AC.destination);
-  }
-}
+let quiz = [];
+let idx = 0;
+let correctCount = 0;
+let wrongCount = 0;
+let totalQuestions = 10;
+let score = 0;
+let combo = 0;
+let currentInput = "";
+let answerHistory = [];
+let challengeMode = false;
 
-/* -----------------------------------------------------
-   効果音
------------------------------------------------------ */
-function playSE(type) {
-  if (!AC) return;
+let timeLeft = 0;
+let timeTimerId = null;     // 本番タイマー
+let preCountTimerId = null; // 3,2,1カウントダウン用
+let isPreCounting = false;
+let lastStage = 1;
+let kukuHintShown = false;  // 使わないが互換用
 
-  const osc = AC.createOscillator();
-  const gain = AC.createGain();
-  osc.connect(gain);
-  gain.connect(AC.destination);
-
-  const end = (t) => {
-    osc.start();
-    osc.stop(AC.currentTime + t);
-  };
-
-  switch (type) {
-    case "OK":
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(900, AC.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(1500, AC.currentTime + 0.25);
-      gain.gain.value = 0.25;
-      end(0.25);
-      return;
-
-    case "NG":
-      osc.type = "square";
-      osc.frequency.setValueAtTime(220, AC.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(110, AC.currentTime + 0.28);
-      gain.gain.value = 0.25;
-      end(0.28);
-      return;
-
-    case "COMBO2":
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(700, AC.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(1000, AC.currentTime + 0.16);
-      gain.gain.value = 0.2;
-      end(0.16);
-      return;
-
-    case "COMBO3":
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(900, AC.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(1600, AC.currentTime + 0.20);
-      gain.gain.value = 0.25;
-      end(0.20);
-      return;
-
-    case "COMBO4":
-      osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(800, AC.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(2000, AC.currentTime + 0.26);
-      gain.gain.value = 0.28;
-      end(0.26);
-      return;
-
-    case "LEVELUP":
-      osc.type = "square";
-      osc.frequency.setValueAtTime(600, AC.currentTime);
-      osc.frequency.linearRampToValueAtTime(1200, AC.currentTime + 0.25);
-      gain.gain.value = 0.25;
-      end(0.25);
-      return;
-
-    case "DINO": // きょうりゅうタップ
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(1000, AC.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(1600, AC.currentTime + 0.20);
-      gain.gain.value = 0.3;
-      end(0.20);
-      return;
-
-    case "ROAR": { // でんせつのドラゴン咆哮（BGMを一瞬だけ小さくして目立たせる）
-      if (bgmGain && AC) {
-        const base =
-          currentBgm === "night"
-            ? 2.0 // 夜モードのベースボリューム
-            : 1.0; // 通常モード
-        const now = AC.currentTime;
-        bgmGain.gain.setValueAtTime(base * 0.3, now);
-        bgmGain.gain.linearRampToValueAtTime(base, now + 0.6);
-      }
-
-      osc.type = "sawtooth";
-      const now = AC.currentTime;
-      osc.frequency.setValueAtTime(220, now);
-      osc.frequency.exponentialRampToValueAtTime(90, now + 0.35);
-      osc.frequency.exponentialRampToValueAtTime(130, now + 0.5);
-
-      gain.gain.setValueAtTime(0.8, now);
-      gain.gain.exponentialRampToValueAtTime(0.08, now + 0.5);
-
-      end(0.5);
-      return;
-    }
-  }
-}
-
-/* -----------------------------------------------------
-   🎵 BGMセクション
------------------------------------------------------ */
-function makeTone(freq, len) {
-  return { freq, len };
-}
-
-/* --- やさしい（明るめ） --- */
-const BGM_EASY = [
-  {
-    melody: [
-      makeTone(523, 0.25), makeTone(587, 0.25),
-      makeTone(659, 0.25), makeTone(783, 0.25),
-      makeTone(659, 0.25), makeTone(587, 0.25),
-      makeTone(523, 0.25), makeTone(0,   0.25)
-    ],
-    bass: [
-      makeTone(130, 0.5), makeTone(0, 0.25),
-      makeTone(98,  0.5), makeTone(0, 0.25)
-    ]
-  },
-  {
-    melody: [
-      makeTone(587, 0.25), makeTone(659, 0.25),
-      makeTone(783, 0.25), makeTone(880, 0.25),
-      makeTone(783, 0.25), makeTone(659, 0.25),
-      makeTone(587, 0.25), makeTone(0,   0.25)
-    ],
-    bass: [
-      makeTone(98,  0.5), makeTone(0, 0.25),
-      makeTone(146, 0.5), makeTone(0, 0.25)
-    ]
-  },
-  {
-    melody: [
-      makeTone(659, 0.25), makeTone(523, 0.25),
-      makeTone(587, 0.25), makeTone(659, 0.25),
-      makeTone(587, 0.25), makeTone(523, 0.25),
-      makeTone(440, 0.25), makeTone(0,   0.25)
-    ],
-    bass: [
-      makeTone(130, 0.5), makeTone(0, 0.25),
-      makeTone(130, 0.5), makeTone(0, 0.25)
-    ]
-  }
+// ------------------------------
+// 九九 Tips（裏ワザ系 厳選12）
+// ------------------------------
+const KUKU_TIPS = [
+  "9のだんは「10のだん−その数」で一瞬で出せるよ。9×8→80−8＝72のように、10のだんを使うと別世界の速さ！",
+  "8×7＝56は、7×7＝49に7を1回足しただけだよ。49＋7＝56と覚えると、ぜったい忘れにくくなる！",
+  "6のだんは「5のだん＋もう1つ」で求められるよ。6×8＝40＋8＝48。むずかしい式ほどこの裏ワザが強い！",
+  "4のだんは「2のだんを2回くり返す」だけ。2のだんができれば、4のだんはもうクリアしているんだ。",
+  "7×6＝42は「7×3を2倍」で出せるよ。21×2＝42。分けて考えるとびっくりするくらいスッキリ！",
+  "8のだんは「4のだんを2回」。4×8＝32→32＋32＝64。困ったら半分のだんで考えるのがコツだよ。",
+  "7×8が覚えにくいときは、前後の答えで挟んでみよう。6×8＝48と8×8＝64、その真ん中が56になるよ。",
+  "5のだんの答えは、奇数なら「5」、偶数なら「0」でおわるよ。最後の一けたを見れば一気に判断できる！",
+  "11×n（1〜9）は数字を2回書くだけ。7→77、9→99。11の性質を知ると計算がちょっと楽しくなるよ。",
+  "12のだんは「10倍＋2倍」で考えると最強。12×7＝70＋14＝84。2けた九九もこわくなくなる！",
+  "9のだんは答えの十の位と一の位を足すと必ず9になるよ。63→6＋3＝9、72→7＋2＝9。ミスチェックにも使える！",
+  "3のだんは「1×nと2×nの合体」。3×9＝9＋18＝27。“1＋2”でできているだんだと思うと自然に覚えられるよ。"
 ];
 
-/* --- ふつう（テンポアップ） --- */
-const BGM_NORMAL = [
-  {
-    melody: [
-      makeTone(659, 0.20), makeTone(783, 0.20),
-      makeTone(987, 0.20), makeTone(1046,0.20),
-      makeTone(987, 0.20), makeTone(783, 0.20),
-      makeTone(659, 0.20), makeTone(0,   0.20)
-    ],
-    bass: [
-      makeTone(130, 0.4), makeTone(0, 0.1),
-      makeTone(196, 0.4), makeTone(0, 0.1)
-    ]
-  },
-  {
-    melody: [
-      makeTone(523, 0.20), makeTone(587, 0.20),
-      makeTone(659, 0.20), makeTone(783, 0.20),
-      makeTone(659, 0.20), makeTone(587, 0.20),
-      makeTone(523, 0.20), makeTone(0,   0.20)
-    ],
-    bass: [
-      makeTone(196, 0.4), makeTone(0, 0.1),
-      makeTone(146, 0.4), makeTone(0, 0.1)
-    ]
-  },
-  {
-    melody: [
-      makeTone(659, 0.20), makeTone(698, 0.20),
-      makeTone(783, 0.20), makeTone(987, 0.20),
-      makeTone(783, 0.20), makeTone(698, 0.20),
-      makeTone(659, 0.20), makeTone(0,   0.20)
-    ],
-    bass: [
-      makeTone(196, 0.4), makeTone(0, 0.1),
-      makeTone(196, 0.4), makeTone(0, 0.1)
-    ]
-  }
-];
-
-/* --- ちょうせん（緊張感） --- */
-const BGM_HARD = [
-  {
-    melody: [
-      makeTone(440, 0.15), makeTone(523, 0.15),
-      makeTone(587, 0.15), makeTone(659, 0.15),
-      makeTone(587, 0.15), makeTone(523, 0.15),
-      makeTone(440, 0.15), makeTone(0,   0.15)
-    ],
-    bass: [
-      makeTone(110, 0.3), makeTone(0, 0.1),
-      makeTone(146, 0.3), makeTone(0, 0.1)
-    ]
-  },
-  {
-    melody: [
-      makeTone(659, 0.15), makeTone(698, 0.15),
-      makeTone(880, 0.15), makeTone(987, 0.15),
-      makeTone(880, 0.15), makeTone(698, 0.15),
-      makeTone(659, 0.15), makeTone(0,   0.15)
-    ],
-    bass: [
-      makeTone(110, 0.3), makeTone(0, 0.1),
-      makeTone(196, 0.3), makeTone(0, 0.1)
-    ]
-  },
-  {
-    melody: [
-      makeTone(523, 0.15), makeTone(587, 0.15),
-      makeTone(659, 0.15), makeTone(783, 0.15),
-      makeTone(659, 0.15), makeTone(587, 0.15),
-      makeTone(523, 0.15), makeTone(0,   0.15)
-    ],
-    bass: [
-      makeTone(146, 0.3), makeTone(0, 0.1),
-      makeTone(196, 0.3), makeTone(0, 0.1)
-    ]
-  }
-];
-
-/* --- 👻 ちょうむず（夜モード）幽霊屋敷風 --- */
-const BGM_NIGHT = [
-  {
-    melody: [
-      makeTone(392, 0.30), makeTone(0,   0.10), // G4
-      makeTone(370, 0.25), makeTone(0,   0.10), // F#
-      makeTone(349, 0.20), makeTone(0,   0.20), // F
-      makeTone(311, 0.30), makeTone(0,   0.10)  // Eb
-    ],
-    bass: [
-      makeTone(98,  0.4),  makeTone(0, 0.2),
-      makeTone(82,  0.4),  makeTone(0, 0.2)
-    ]
-  },
-  {
-    melody: [
-      makeTone(311, 0.25), makeTone(0,   0.15),
-      makeTone(262, 0.20), makeTone(0,   0.15),
-      makeTone(233, 0.20), makeTone(0,   0.20),
-      makeTone(262, 0.25), makeTone(0,   0.15)
-    ],
-    bass: [
-      makeTone(82,  0.4),  makeTone(0, 0.1),
-      makeTone(110, 0.4),  makeTone(0, 0.1)
-    ]
-  },
-  {
-    melody: [
-      makeTone(233, 0.25), makeTone(0,   0.15),
-      makeTone(208, 0.25), makeTone(0,   0.15),
-      makeTone(196, 0.25), makeTone(0,   0.15),
-      makeTone(233, 0.25), makeTone(0,   0.15)
-    ],
-    bass: [
-      makeTone(98,  0.4),  makeTone(0, 0.1),
-      makeTone(98,  0.4),  makeTone(0, 0.1)
-    ]
-  }
-];
-
-/* -----------------------------------------------------
-   BGM 停止
------------------------------------------------------ */
-function stopBGM() {
-  if (!AC || !bgmGain) return;
-  bgmOn = false;
-
-  if (bgmTimer) {
-    clearInterval(bgmTimer);
-    bgmTimer = null;
-  }
-  bgmGain.gain.setValueAtTime(0, AC.currentTime);
-
-  bgmNodes.forEach((o) => {
-    try { o.stop(); } catch (e) {}
-  });
-  bgmNodes = [];
-}
-
-/* -----------------------------------------------------
-   1小節分をスケジュール（夜モードはエンベロープ付き）
------------------------------------------------------ */
-function scheduleBgmBar() {
-  if (!AC || !bgmOn || !bgmGain) return;
-
-  let SECT;
-  if (currentBgm === "easy")        SECT = BGM_EASY;
-  else if (currentBgm === "normal") SECT = BGM_NORMAL;
-  else if (currentBgm === "hard")   SECT = BGM_HARD;
-  else                              SECT = BGM_NIGHT;
-
-  const s = SECT[bgmSectionIndex % SECT.length];
-  const MELODY = s.melody;
-  const BASS   = s.bass;
-
-  const now = AC.currentTime;
-  let tMel = now, tBass = now;
-
-  MELODY.forEach((n) => {
-    const len = n.len * bgmSpeedFactor;
-    if (n.freq > 0) {
-      const o = AC.createOscillator();
-      const g = AC.createGain();
-      o.connect(g); g.connect(bgmGain);
-      o.type = (currentBgm === "night" ? "triangle" : "square");
-      o.frequency.setValueAtTime(n.freq, tMel);
-
-      const baseAmp = (currentBgm === "night" ? 0.12 : 0.07);
-
-      if (currentBgm === "night") {
-        const attack = Math.min(0.02, len / 4);
-        const release = Math.min(0.02, len / 4);
-        const sustainStart = tMel + attack;
-        const sustainEnd   = tMel + len - release;
-
-        g.gain.setValueAtTime(0.0001, tMel);
-        g.gain.linearRampToValueAtTime(baseAmp, sustainStart);
-        g.gain.setValueAtTime(baseAmp, sustainEnd);
-        g.gain.linearRampToValueAtTime(0.0001, tMel + len);
-      } else {
-        g.gain.setValueAtTime(baseAmp, tMel);
-      }
-
-      o.start(tMel);
-      o.stop(tMel + len);
-      bgmNodes.push(o);
-    }
-    tMel += len;
-  });
-
-  BASS.forEach((n) => {
-    const len = n.len * bgmSpeedFactor;
-    if (n.freq > 0) {
-      const o = AC.createOscillator();
-      const g = AC.createGain();
-      o.connect(g); g.connect(bgmGain);
-      o.type = (currentBgm === "night" ? "sine" : "square");
-      o.frequency.setValueAtTime(n.freq, tBass);
-
-      const baseAmp = (currentBgm === "night" ? 0.10 : 0.04);
-
-      if (currentBgm === "night") {
-        const attack = Math.min(0.02, len / 4);
-        const release = Math.min(0.02, len / 4);
-        const sustainStart = tBass + attack;
-        const sustainEnd   = tBass + len - release;
-
-        g.gain.setValueAtTime(0.0001, tBass);
-        g.gain.linearRampToValueAtTime(baseAmp, sustainStart);
-        g.gain.setValueAtTime(baseAmp, sustainEnd);
-        g.gain.linearRampToValueAtTime(0.0001, tBass + len);
-      } else {
-        g.gain.setValueAtTime(baseAmp, tBass);
-      }
-
-      o.start(tBass);
-      o.stop(tBass + len);
-      bgmNodes.push(o);
-    }
-    tBass += len;
-  });
-
-  bgmSectionIndex++;
-}
-
-/* -----------------------------------------------------
-   BGM 開始（夜モードは音量2.0）
------------------------------------------------------ */
-function startBGM() {
-  initAudio();
-  if (!AC || !bgmGain) return;
-
-  const doStart = () => {
-    stopBGM();
-    bgmOn = true;
-    bgmGain.gain.value = (currentBgm === "night" ? 2.0 : 1.0);
-    bgmSectionIndex = 0;
-
-    let SECT;
-    if (currentBgm === "easy")        SECT = BGM_EASY;
-    else if (currentBgm === "normal") SECT = BGM_NORMAL;
-    else if (currentBgm === "hard")   SECT = BGM_HARD;
-    else                              SECT = BGM_NIGHT;
-
-    const barSec = SECT[0].melody.reduce(
-      (s, n) => s + n.len * bgmSpeedFactor,
-      0
-    );
-
-    scheduleBgmBar();
-    bgmTimer = setInterval(scheduleBgmBar, barSec * 1000);
-  };
-
-  if (AC.state === "suspended") {
-    AC.resume().then(doStart);
-  } else {
-    doStart();
-  }
-}
-
-/* タブ復帰でBGM安定 */
-document.addEventListener("visibilitychange", () => {
-  if (!AC || !bgmGain) return;
-  if (document.visibilityState === "visible") {
-    if (bgmOn) {
-      if (AC.state === "suspended") {
-        AC.resume().then(startBGM);
-      } else {
-        startBGM();
-      }
-    }
-  } else {
-    if (bgmOn) stopBGM();
-  }
-});
-
-/* -----------------------------------------------------
-   DOM 取得
------------------------------------------------------ */
+// ------------------------------
+// DOM
+// ------------------------------
 const els = {
   title: document.getElementById("title"),
   qNo: document.getElementById("qNo"),
@@ -491,28 +96,573 @@ const els = {
 
 const modeBtns = document.querySelectorAll(".mode-btn");
 const keys = document.querySelectorAll(".key");
+const modalBackdrop = document.querySelector("#tableModal .modal-backdrop");
 
-/* -----------------------------------------------------
-   状態管理
------------------------------------------------------ */
-let quiz = [];
-let idx = 0;
-let correctCount = 0;
-let wrongCount = 0;
-let totalQuestions = 10;
-let score = 0;
-let combo = 0;
-let currentInput = "";
-let answerHistory = [];
-let challengeMode = false;
-let timeLeft = 0;
-let timeTimerId = null;
-let lastStage = 1;
-let kukuHintShown = false;
+// ------------------------------
+// Audio 初期化
+// ------------------------------
+function initAudio() {
+  if (!AC) {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    AC = new Ctx();
+  }
+  if (!bgmGain && AC) {
+    bgmGain = AC.createGain();
+    bgmGain.gain.value = 1.0;
+    bgmGain.connect(AC.destination);
+  }
+}
 
-/* -----------------------------------------------------
-   タイマー（ちょうせん & 夜モード用）
------------------------------------------------------ */
+// ------------------------------
+// 効果音
+// ------------------------------
+function playSE(type) {
+  if (!AC) return;
+
+  const osc = AC.createOscillator();
+  const gain = AC.createGain();
+  osc.connect(gain);
+  gain.connect(AC.destination);
+
+  const now = AC.currentTime;
+  const end = (t) => {
+    osc.start();
+    osc.stop(now + t);
+  };
+
+  switch (type) {
+    case "OK":
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(900, now);
+      osc.frequency.exponentialRampToValueAtTime(1500, now + 0.25);
+      gain.gain.value = 0.25;
+      end(0.25);
+      return;
+
+    case "NG":
+      osc.type = "square";
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.exponentialRampToValueAtTime(110, now + 0.28);
+      gain.gain.value = 0.25;
+      end(0.28);
+      return;
+
+    case "COMBO2":
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(700, now);
+      osc.frequency.exponentialRampToValueAtTime(1000, now + 0.16);
+      gain.gain.value = 0.2;
+      end(0.16);
+      return;
+
+    case "COMBO3":
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(900, now);
+      osc.frequency.exponentialRampToValueAtTime(1600, now + 0.20);
+      gain.gain.value = 0.25;
+      end(0.20);
+      return;
+
+    case "COMBO4":
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(800, now);
+      osc.frequency.exponentialRampToValueAtTime(2000, now + 0.26);
+      gain.gain.value = 0.28;
+      end(0.26);
+      return;
+
+    case "LEVELUP":
+      osc.type = "square";
+      osc.frequency.setValueAtTime(600, now);
+      osc.frequency.linearRampToValueAtTime(1200, now + 0.25);
+      gain.gain.value = 0.25;
+      end(0.25);
+      return;
+
+    case "DINO":
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(1000, now);
+      osc.frequency.exponentialRampToValueAtTime(1600, now + 0.20);
+      gain.gain.value = 0.3;
+      end(0.20);
+      return;
+
+    case "ROAR": {
+      if (bgmGain && AC) {
+        const base = currentBgm === "night" ? 2.0 : 1.0;
+        bgmGain.gain.setValueAtTime(base * 0.3, now);
+        bgmGain.gain.linearRampToValueAtTime(base, now + 0.6);
+      }
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.exponentialRampToValueAtTime(90, now + 0.35);
+      osc.frequency.exponentialRampToValueAtTime(130, now + 0.5);
+      gain.gain.setValueAtTime(0.8, now);
+      gain.gain.exponentialRampToValueAtTime(0.08, now + 0.5);
+      end(0.5);
+      return;
+    }
+  }
+}
+
+// 結果ジングル
+function playResultJingle(score, reason) {
+  if (!AC) return;
+  const osc = AC.createOscillator();
+  const gain = AC.createGain();
+  osc.connect(gain);
+  gain.connect(AC.destination);
+
+  const now = AC.currentTime;
+
+  if (reason === "timeup" || reason === "gameover") {
+    // やさしめの「おつかれ」音
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(440, now);
+    osc.frequency.linearRampToValueAtTime(392, now + 0.25);
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+    osc.start();
+    osc.stop(now + 0.25);
+    return;
+  }
+
+  if (score === 100) {
+    // ちょっと派手な上昇フレーズ
+    const freqs = [523, 659, 784, 1046];
+    freqs.forEach((f, i) => {
+      const o = AC.createOscillator();
+      const g = AC.createGain();
+      o.connect(g);
+      g.connect(AC.destination);
+      o.type = "square";
+      const t0 = now + i * 0.09;
+      o.frequency.setValueAtTime(f, t0);
+      g.gain.setValueAtTime(0.18, t0);
+      g.gain.linearRampToValueAtTime(0.01, t0 + 0.08);
+      o.start(t0);
+      o.stop(t0 + 0.1);
+    });
+    return;
+  }
+
+  if (score >= 80) {
+    // 明るめ「やったね」音
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(659, now);
+    osc.frequency.linearRampToValueAtTime(784, now + 0.2);
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+    osc.start();
+    osc.stop(now + 0.2);
+    return;
+  }
+
+  // それ未満：やさしい「もう一回いこ？」音
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(523, now);
+  osc.frequency.linearRampToValueAtTime(440, now + 0.25);
+  gain.gain.setValueAtTime(0.17, now);
+  gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+  osc.start();
+  osc.stop(now + 0.25);
+}
+
+// ------------------------------
+// BGM 用ユーティリティ
+// ------------------------------
+function makeTone(freq, len) {
+  return { freq, len };
+}
+
+// EASY: 4セクション
+const BGM_EASY = [
+  {
+    // 1: イントロ
+    melody: [
+      makeTone(523, 0.25), makeTone(587, 0.25),
+      makeTone(659, 0.25), makeTone(783, 0.25),
+      makeTone(659, 0.25), makeTone(587, 0.25),
+      makeTone(523, 0.25), makeTone(0,   0.25)
+    ],
+    bass: [
+      makeTone(130, 0.5), makeTone(0, 0.25),
+      makeTone(98,  0.5), makeTone(0, 0.25)
+    ]
+  },
+  {
+    // 2: さんすう教室
+    melody: [
+      makeTone(587, 0.25), makeTone(659, 0.25),
+      makeTone(783, 0.25), makeTone(880, 0.25),
+      makeTone(783, 0.25), makeTone(659, 0.25),
+      makeTone(587, 0.25), makeTone(0,   0.25)
+    ],
+    bass: [
+      makeTone(98,  0.5), makeTone(0, 0.25),
+      makeTone(146, 0.5), makeTone(0, 0.25)
+    ]
+  },
+  {
+    // 3: きょうりゅうとおさんぽ
+    melody: [
+      makeTone(659, 0.25), makeTone(523, 0.25),
+      makeTone(587, 0.25), makeTone(659, 0.25),
+      makeTone(587, 0.25), makeTone(523, 0.25),
+      makeTone(440, 0.25), makeTone(0,   0.25)
+    ],
+    bass: [
+      makeTone(130, 0.5), makeTone(0, 0.25),
+      makeTone(130, 0.5), makeTone(0, 0.25)
+    ]
+  },
+  {
+    // 4: ゴール前キラキラ
+    melody: [
+      makeTone(783, 0.25), makeTone(880, 0.25),
+      makeTone(987, 0.25), makeTone(1046,0.25),
+      makeTone(987, 0.25), makeTone(880, 0.25),
+      makeTone(783, 0.25), makeTone(0,   0.25)
+    ],
+    bass: [
+      makeTone(146, 0.5), makeTone(0, 0.25),
+      makeTone(196, 0.5), makeTone(0, 0.25)
+    ]
+  }
+];
+
+// NORMAL: 4セクション
+const BGM_NORMAL = [
+  {
+    // 1: 軽くダッシュ
+    melody: [
+      makeTone(659, 0.20), makeTone(783, 0.20),
+      makeTone(987, 0.20), makeTone(1046,0.20),
+      makeTone(987, 0.20), makeTone(783, 0.20),
+      makeTone(659, 0.20), makeTone(0,   0.20)
+    ],
+    bass: [
+      makeTone(130, 0.4), makeTone(0, 0.1),
+      makeTone(196, 0.4), makeTone(0, 0.1)
+    ]
+  },
+  {
+    // 2: 集中モード
+    melody: [
+      makeTone(523, 0.20), makeTone(587, 0.20),
+      makeTone(659, 0.20), makeTone(783, 0.20),
+      makeTone(659, 0.20), makeTone(587, 0.20),
+      makeTone(523, 0.20), makeTone(0,   0.20)
+    ],
+    bass: [
+      makeTone(196, 0.4), makeTone(0, 0.1),
+      makeTone(146, 0.4), makeTone(0, 0.1)
+    ]
+  },
+  {
+    // 3: 盛り上がり
+    melody: [
+      makeTone(659, 0.20), makeTone(698, 0.20),
+      makeTone(783, 0.20), makeTone(987, 0.20),
+      makeTone(783, 0.20), makeTone(698, 0.20),
+      makeTone(659, 0.20), makeTone(0,   0.20)
+    ],
+    bass: [
+      makeTone(196, 0.4), makeTone(0, 0.1),
+      makeTone(196, 0.4), makeTone(0, 0.1)
+    ]
+  },
+  {
+    // 4: ループへの架け橋
+    melody: [
+      makeTone(587, 0.20), makeTone(659, 0.20),
+      makeTone(698, 0.20), makeTone(783, 0.20),
+      makeTone(698, 0.20), makeTone(659, 0.20),
+      makeTone(587, 0.20), makeTone(0,   0.20)
+    ],
+    bass: [
+      makeTone(146, 0.4), makeTone(0, 0.1),
+      makeTone(130, 0.4), makeTone(0, 0.1)
+    ]
+  }
+];
+
+// HARD: 4セクション
+const BGM_HARD = [
+  {
+    // 1: 緊張スタート
+    melody: [
+      makeTone(440, 0.15), makeTone(523, 0.15),
+      makeTone(587, 0.15), makeTone(659, 0.15),
+      makeTone(587, 0.15), makeTone(523, 0.15),
+      makeTone(440, 0.15), makeTone(0,   0.15)
+    ],
+    bass: [
+      makeTone(110, 0.3), makeTone(0, 0.1),
+      makeTone(146, 0.3), makeTone(0, 0.1)
+    ]
+  },
+  {
+    // 2: プレッシャーゾーン
+    melody: [
+      makeTone(659, 0.15), makeTone(698, 0.15),
+      makeTone(880, 0.15), makeTone(987, 0.15),
+      makeTone(880, 0.15), makeTone(698, 0.15),
+      makeTone(659, 0.15), makeTone(0,   0.15)
+    ],
+    bass: [
+      makeTone(110, 0.3), makeTone(0, 0.1),
+      makeTone(196, 0.3), makeTone(0, 0.1)
+    ]
+  },
+  {
+    // 3: 攻めモード
+    melody: [
+      makeTone(523, 0.15), makeTone(587, 0.15),
+      makeTone(659, 0.15), makeTone(783, 0.15),
+      makeTone(659, 0.15), makeTone(587, 0.15),
+      makeTone(523, 0.15), makeTone(0,   0.15)
+    ],
+    bass: [
+      makeTone(146, 0.3), makeTone(0, 0.1),
+      makeTone(196, 0.3), makeTone(0, 0.1)
+    ]
+  },
+  {
+    // 4: 小休止
+    melody: [
+      makeTone(493, 0.15), makeTone(523, 0.15),
+      makeTone(587, 0.15), makeTone(659, 0.15),
+      makeTone(587, 0.15), makeTone(523, 0.15),
+      makeTone(493, 0.15), makeTone(0,   0.15)
+    ],
+    bass: [
+      makeTone(130, 0.3), makeTone(0, 0.1),
+      makeTone(130, 0.3), makeTone(0, 0.1)
+    ]
+  }
+];
+
+// NIGHT: 幽霊屋敷風 4セクション
+const BGM_NIGHT = [
+  {
+    // 1: 入口
+    melody: [
+      makeTone(392, 0.30), makeTone(0,   0.10),
+      makeTone(370, 0.25), makeTone(0,   0.10),
+      makeTone(349, 0.20), makeTone(0,   0.20),
+      makeTone(311, 0.30), makeTone(0,   0.10)
+    ],
+    bass: [
+      makeTone(98,  0.4),  makeTone(0, 0.2),
+      makeTone(82,  0.4),  makeTone(0, 0.2)
+    ]
+  },
+  {
+    // 2: 遠くのオルガン
+    melody: [
+      makeTone(311, 0.25), makeTone(0,   0.15),
+      makeTone(262, 0.20), makeTone(0,   0.15),
+      makeTone(233, 0.20), makeTone(0,   0.20),
+      makeTone(262, 0.25), makeTone(0,   0.15)
+    ],
+    bass: [
+      makeTone(82,  0.4),  makeTone(0, 0.1),
+      makeTone(110, 0.4),  makeTone(0, 0.1)
+    ]
+  },
+  {
+    // 3: 足音リズム
+    melody: [
+      makeTone(233, 0.25), makeTone(0,   0.15),
+      makeTone(208, 0.25), makeTone(0,   0.15),
+      makeTone(196, 0.25), makeTone(0,   0.15),
+      makeTone(233, 0.25), makeTone(0,   0.15)
+    ],
+    bass: [
+      makeTone(98,  0.4),  makeTone(0, 0.1),
+      makeTone(98,  0.4),  makeTone(0, 0.1)
+    ]
+  },
+  {
+    // 4: 一瞬の静けさ
+    melody: [
+      makeTone(262, 0.20), makeTone(0,   0.20),
+      makeTone(311, 0.20), makeTone(0,   0.20),
+      makeTone(349, 0.20), makeTone(0,   0.20),
+      makeTone(392, 0.20), makeTone(0,   0.20)
+    ],
+    bass: [
+      makeTone(82,  0.4),  makeTone(0, 0.1),
+      makeTone(82,  0.4),  makeTone(0, 0.1)
+    ]
+  }
+];
+
+// ------------------------------
+// BGM停止
+// ------------------------------
+function stopBGM() {
+  if (!AC || !bgmGain) return;
+
+  if (bgmTimer) {
+    clearInterval(bgmTimer);
+    bgmTimer = null;
+  }
+  bgmGain.gain.setValueAtTime(0, AC.currentTime);
+
+  bgmNodes.forEach((o) => {
+    try { o.stop(); } catch (e) {}
+  });
+  bgmNodes = [];
+
+  bgmState = "off";
+}
+
+// ------------------------------
+// 1小節分スケジュール
+// ------------------------------
+function scheduleBgmBar() {
+  if (!AC || !bgmGain) return;
+  if (bgmState !== "playing") return;
+
+  let SECT;
+  if (currentBgm === "easy")        SECT = BGM_EASY;
+  else if (currentBgm === "normal") SECT = BGM_NORMAL;
+  else if (currentBgm === "hard")   SECT = BGM_HARD;
+  else                              SECT = BGM_NIGHT;
+
+  const s = SECT[bgmSectionIndex % SECT.length];
+  const MELODY = s.melody;
+  const BASS   = s.bass;
+
+  const now = AC.currentTime;
+  let tMel = now;
+  let tBass = now;
+
+  MELODY.forEach((n) => {
+    const len = n.len * bgmSpeedFactor;
+    if (n.freq > 0) {
+      const o = AC.createOscillator();
+      const g = AC.createGain();
+      o.connect(g);
+      g.connect(bgmGain);
+      o.type = (currentBgm === "night" ? "triangle" : "square");
+      o.frequency.setValueAtTime(n.freq, tMel);
+
+      const baseAmp = (currentBgm === "night" ? 0.12 : 0.07);
+
+      if (currentBgm === "night") {
+        const attack = Math.min(0.02, len / 4);
+        const release = Math.min(0.02, len / 4);
+        const sustainStart = tMel + attack;
+        const sustainEnd   = tMel + len - release;
+
+        g.gain.setValueAtTime(0.0001, tMel);
+        g.gain.linearRampToValueAtTime(baseAmp, sustainStart);
+        g.gain.setValueAtTime(baseAmp, sustainEnd);
+        g.gain.linearRampToValueAtTime(0.0001, tMel + len);
+      } else {
+        g.gain.setValueAtTime(baseAmp, tMel);
+      }
+
+      o.start(tMel);
+      o.stop(tMel + len);
+      bgmNodes.push(o);
+    }
+    tMel += len;
+  });
+
+  BASS.forEach((n) => {
+    const len = n.len * bgmSpeedFactor;
+    if (n.freq > 0) {
+      const o = AC.createOscillator();
+      const g = AC.createGain();
+      o.connect(g);
+      g.connect(bgmGain);
+      o.type = (currentBgm === "night" ? "sine" : "square");
+      o.frequency.setValueAtTime(n.freq, tBass);
+
+      const baseAmp = (currentBgm === "night" ? 0.10 : 0.04);
+
+      if (currentBgm === "night") {
+        const attack = Math.min(0.02, len / 4);
+        const release = Math.min(0.02, len / 4);
+        const sustainStart = tBass + attack;
+        const sustainEnd   = tBass + len - release;
+
+        g.gain.setValueAtTime(0.0001, tBass);
+        g.gain.linearRampToValueAtTime(baseAmp, sustainStart);
+        g.gain.setValueAtTime(baseAmp, sustainEnd);
+        g.gain.linearRampToValueAtTime(0.0001, tBass + len);
+      } else {
+        g.gain.setValueAtTime(baseAmp, tBass);
+      }
+
+      o.start(tBass);
+      o.stop(tBass + len);
+      bgmNodes.push(o);
+    }
+    tBass += len;
+  });
+
+  bgmSectionIndex++;
+}
+
+// ------------------------------
+// BGM開始（夜モードは音量2.0）
+// ------------------------------
+function startBGM() {
+  initAudio();
+  if (!AC || !bgmGain) return;
+
+  // すでに再生中なら一度止める
+  if (bgmTimer) {
+    clearInterval(bgmTimer);
+    bgmTimer = null;
+  }
+  bgmNodes.forEach((o) => {
+    try { o.stop(); } catch (e) {}
+  });
+  bgmNodes = [];
+
+  bgmState = "playing";
+  bgmGain.gain.value = (currentBgm === "night" ? 2.0 : 1.0);
+  bgmSectionIndex = 0;
+
+  let SECT;
+  if (currentBgm === "easy")        SECT = BGM_EASY;
+  else if (currentBgm === "normal") SECT = BGM_NORMAL;
+  else if (currentBgm === "hard")   SECT = BGM_HARD;
+  else                              SECT = BGM_NIGHT;
+
+  const barSec = SECT[0].melody.reduce(
+    (s, n) => s + n.len * bgmSpeedFactor,
+    0
+  );
+
+  scheduleBgmBar();
+  bgmTimer = setInterval(scheduleBgmBar, barSec * 1000);
+}
+
+// タブ切り替え
+document.addEventListener("visibilitychange", () => {
+  if (!AC) return;
+  if (document.visibilityState === "hidden") {
+    AC.suspend();
+  } else {
+    if (bgmState === "playing") {
+      AC.resume().then(() => {
+        startBGM();
+      });
+    }
+  }
+});
+
+// ------------------------------
+// タイマー関連
+// ------------------------------
 function stopTimer() {
   if (timeTimerId) {
     clearInterval(timeTimerId);
@@ -520,11 +670,22 @@ function stopTimer() {
   }
 }
 
+function cancelPreCountdown() {
+  if (preCountTimerId) {
+    clearInterval(preCountTimerId);
+    preCountTimerId = null;
+  }
+  isPreCounting = false;
+  els.timeDisplay.classList.remove("countdown");
+}
+
+// 本番タイマー開始
 function startTimer(seconds = 60) {
   stopTimer();
+  cancelPreCountdown();
+
   timeLeft = seconds;
   els.timeDisplay.classList.remove("hidden");
-  els.timeDisplay.classList.remove("countdown");
   els.timeDisplay.textContent = String(timeLeft);
 
   timeTimerId = setInterval(() => {
@@ -538,22 +699,28 @@ function startTimer(seconds = 60) {
   }, 1000);
 }
 
-/* ちょうせんモード開始前のカウントダウン（60秒用） */
+// ちょうせん用 カウントダウン
 function runChallengeCountdown() {
   stopTimer();
+  cancelPreCountdown();
+
   let count = 3;
+  isPreCounting = true;
   els.timeDisplay.classList.remove("hidden");
   els.timeDisplay.classList.add("countdown");
   els.timeDisplay.textContent = count;
+
   setKeypadEnabled(false);
   els.submitBtn.disabled = true;
 
-  const timer = setInterval(() => {
+  preCountTimerId = setInterval(() => {
     count--;
     if (count > 0) {
       els.timeDisplay.textContent = count;
     } else {
-      clearInterval(timer);
+      clearInterval(preCountTimerId);
+      preCountTimerId = null;
+      isPreCounting = false;
       els.timeDisplay.textContent = "すたーと！";
       playSE("OK");
       setTimeout(() => {
@@ -566,46 +733,52 @@ function runChallengeCountdown() {
   }, 1000);
 }
 
-/* 夜モード開始前のカウントダウン（90秒用） */
+// 夜モード用 カウントダウン
 function runNightCountdown() {
   stopTimer();
+  cancelPreCountdown();
+
   let count = 3;
+  isPreCounting = true;
   els.timeDisplay.classList.remove("hidden");
   els.timeDisplay.classList.add("countdown");
   els.timeDisplay.textContent = count;
+
   setKeypadEnabled(false);
   els.submitBtn.disabled = true;
 
-  const timer = setInterval(() => {
+  preCountTimerId = setInterval(() => {
     count--;
     if (count > 0) {
       els.timeDisplay.textContent = count;
     } else {
-      clearInterval(timer);
+      clearInterval(preCountTimerId);
+      preCountTimerId = null;
+      isPreCounting = false;
       els.timeDisplay.textContent = "すたーと！";
       playSE("OK");
       setTimeout(() => {
         els.timeDisplay.classList.remove("countdown");
         setKeypadEnabled(true);
         els.submitBtn.disabled = false;
-        startTimer(90); // 夜モードは90秒
+        startTimer(90);
       }, 600);
     }
   }, 1000);
 }
 
-/* -----------------------------------------------------
-   問題生成
-   通常：1〜9×1〜9
-   夜モード：10〜19×1〜9（問題数は常に30問）
------------------------------------------------------ */
+// ------------------------------
+// 問題生成
+// ------------------------------
 function makeQuiz() {
   const all = [];
   if (nightMode) {
+    // 夜モード：10〜19 × 1〜9
     for (let a = 10; a <= 19; a++) {
       for (let b = 1; b <= 9; b++) all.push([a, b]);
     }
   } else {
+    // 通常：1〜9 × 1〜9
     for (let a = 1; a <= 9; a++) {
       for (let b = 1; b <= 9; b++) all.push([a, b]);
     }
@@ -628,9 +801,9 @@ function makeQuiz() {
   legendaryFlag = false;
 
   bgmSpeedFactor = 1.0;
-  if (bgmOn) startBGM();
 
   stopTimer();
+  cancelPreCountdown();
   els.timeDisplay.classList.add("hidden");
   els.timeDisplay.textContent = "";
 
@@ -642,9 +815,9 @@ function makeQuiz() {
   els.submitBtn.disabled = false;
 }
 
-/* -----------------------------------------------------
-   UI更新
------------------------------------------------------ */
+// ------------------------------
+// UI 更新
+// ------------------------------
 function updateUI() {
   els.qNo.textContent = idx + 1;
   els.left.textContent = quiz[idx][0];
@@ -655,12 +828,10 @@ function updateUI() {
   feedback("");
 }
 
-/* 回答欄 */
 function renderAnswer() {
   els.answerBox.textContent = currentInput || "□";
 }
 
-/* キーパッド有効/無効 */
 function setKeypadEnabled(enabled) {
   keys.forEach((k) => {
     if (enabled) k.classList.remove("disabled");
@@ -668,9 +839,9 @@ function setKeypadEnabled(enabled) {
   });
 }
 
-/* -----------------------------------------------------
-   キーパッド入力（夜モードは3桁まで）
------------------------------------------------------ */
+// ------------------------------
+// キーパッド
+// ------------------------------
 keys.forEach((btn) => {
   const t = btn.textContent.trim();
   if (/^\d$/.test(t)) {
@@ -700,9 +871,9 @@ els.keyClr.onclick = () => {
   renderAnswer();
 };
 
-/* -----------------------------------------------------
-   採点処理
------------------------------------------------------ */
+// ------------------------------
+// 採点
+// ------------------------------
 els.submitBtn.onclick = () => {
   initAudio();
   if (!currentInput) {
@@ -729,11 +900,10 @@ els.submitBtn.onclick = () => {
   } else {
     combo = 0;
     wrongCount++;
-    // legendaryFlag は correctCount によって決まるのでここでは触らない
     playSE("NG");
   }
 
-  if (challengeMode && wrongCount >= 3) {
+  if (challengeMode && !nightMode && wrongCount >= 3) {
     showResult("gameover");
     return;
   }
@@ -761,21 +931,16 @@ els.submitBtn.onclick = () => {
   }, ok ? 700 : 900);
 };
 
-/* -----------------------------------------------------
-   コンボ表示＆BGMスピード
------------------------------------------------------ */
+// ------------------------------
+// コンボ表示 & BGMスピード
+// ------------------------------
 function updateComboUI() {
   const badge = els.comboBadge;
-
   if (combo >= 2) {
     badge.classList.remove("combo-show", "combo-hot");
     void badge.offsetWidth;
-
     badge.textContent = `${combo}コンボ！🔥`;
-    if (combo >= 8) {
-      badge.classList.add("combo-hot");
-    }
-
+    if (combo >= 8) badge.classList.add("combo-hot");
     badge.classList.add("combo-show");
   } else {
     badge.classList.remove("combo-show", "combo-hot");
@@ -785,16 +950,33 @@ function updateComboUI() {
 
 function updateComboBgmSpeed() {
   const old = bgmSpeedFactor;
-  if (combo >= 8) bgmSpeedFactor = 0.6;
-  else if (combo >= 4) bgmSpeedFactor = 0.8;
-  else bgmSpeedFactor = 1.0;
 
-  if (old !== bgmSpeedFactor && bgmOn) startBGM();
+  if (currentBgm === "easy") {
+    if (combo >= 8) bgmSpeedFactor = 0.7;
+    else if (combo >= 4) bgmSpeedFactor = 0.85;
+    else bgmSpeedFactor = 1.0;
+  } else if (currentBgm === "normal") {
+    if (combo >= 8) bgmSpeedFactor = 0.85;
+    else if (combo >= 4) bgmSpeedFactor = 0.9;
+    else bgmSpeedFactor = 1.0;
+  } else if (currentBgm === "hard") {
+    if (combo >= 8) bgmSpeedFactor = 0.9;
+    else if (combo >= 4) bgmSpeedFactor = 0.95;
+    else bgmSpeedFactor = 1.0;
+  } else {
+    // night
+    if (combo >= 8) bgmSpeedFactor = 0.9;
+    else bgmSpeedFactor = 1.0;
+  }
+
+  if (old !== bgmSpeedFactor && bgmState === "playing") {
+    startBGM();
+  }
 }
 
-/* -----------------------------------------------------
-   メッセージ表示
------------------------------------------------------ */
+// ------------------------------
+// メッセージ
+// ------------------------------
 function feedback(msg, ok) {
   els.fx.className = "fx";
   if (ok === true) {
@@ -808,24 +990,17 @@ function feedback(msg, ok) {
   }
 }
 
-/* -----------------------------------------------------
-   きょうりゅうエリア
-   レベルアップ条件：
-     レベル2（🐊）         → 5問正解
-     レベル3（🦖）        → 10問正解
-     レベル4（🌋🦖🦕🌋） → 15問正解
-     でんせつのドラゴン   → 20問正解
------------------------------------------------------ */
+// ------------------------------
+// きょうりゅうエリア
+// ------------------------------
 function updateBuddy() {
   const prevLegend = legendaryFlag;
 
-  // レベル段階は「正解数」で決める
   let stage = 1;
   if (correctCount >= 15) stage = 4;
   else if (correctCount >= 10) stage = 3;
   else if (correctCount >= 5) stage = 2;
 
-  // 伝説のドラゴン条件：20問正解
   const newLegend = correctCount >= 20;
   legendaryFlag = newLegend;
 
@@ -841,14 +1016,11 @@ function updateBuddy() {
     );
   }
 
-  // 伝説ドラゴンになった瞬間に咆哮
   if (legendaryFlag && !prevLegend) {
     playSE("ROAR");
   }
-
   lastStage = stage;
 
-  // 背景スキン
   els.dinoArea.classList.remove(
     "skin-forest",
     "skin-desert",
@@ -860,7 +1032,6 @@ function updateBuddy() {
   else if (stage === 3) els.dinoArea.classList.add("skin-volcano");
   else els.dinoArea.classList.add("skin-super");
 
-  // ゲージ色＆表示
   if (legendaryFlag) {
     els.starFill.style.background =
       "linear-gradient(90deg, #f97316, #eab308, #22c55e, #3b82f6, #a855f7)";
@@ -894,7 +1065,6 @@ function updateBuddy() {
   }
 }
 
-/* きょうりゅうタップ：ジャンプ＋効果音 */
 els.dinoEmoji.addEventListener("click", () => {
   initAudio();
   els.dinoEmoji.classList.add("dino-jump");
@@ -902,9 +1072,9 @@ els.dinoEmoji.addEventListener("click", () => {
   setTimeout(() => els.dinoEmoji.classList.remove("dino-jump"), 400);
 });
 
-/* -----------------------------------------------------
-   スター演出
------------------------------------------------------ */
+// ------------------------------
+// スター演出
+// ------------------------------
 function spawnStar() {
   const star = document.createElement("div");
   star.textContent = "⭐";
@@ -920,13 +1090,14 @@ function spawnStar() {
   setTimeout(() => star.remove(), 700);
 }
 
-/* -----------------------------------------------------
-   結果画面
------------------------------------------------------ */
+// ------------------------------
+// 結果画面
+// ------------------------------
 function showResult(reason = "") {
   els.quizCard.classList.add("hidden");
   els.resultCard.classList.remove("hidden");
   stopTimer();
+  cancelPreCountdown();
   els.timeDisplay.classList.add("hidden");
   els.timeDisplay.textContent = "";
 
@@ -954,11 +1125,13 @@ function showResult(reason = "") {
       "すこしむずかしかったかな？きょうりゅうといっしょにれんしゅうしよう！";
   }
 
-  if (reason === "timeup")
+  if (reason === "timeup") {
     els.finalScore.textContent = "じかんぎれ！";
-  else if (reason === "gameover")
+  } else if (reason === "gameover") {
     els.finalScore.textContent = "ゲームオーバー！";
-  else els.finalScore.textContent = score + "てん";
+  } else {
+    els.finalScore.textContent = score + "てん";
+  }
 
   const historyHtml = answerHistory
     .map(
@@ -970,10 +1143,12 @@ function showResult(reason = "") {
     .join("<br>");
 
   els.summaryList.innerHTML =
+    `<details><summary>くわしいきろくを見る</summary>` +
     `<div class="medal">${medal}</div><p>${msg}</p><hr>` +
-    historyHtml;
+    historyHtml +
+    `</details>`;
 
-  playSE("RESULT");
+  playResultJingle(score, reason);
 
   if (score === 100 && typeof confetti === "function") {
     confetti({ particleCount: 120, spread: 70, origin: { y: 0.7 } });
@@ -1002,25 +1177,9 @@ function showResult(reason = "") {
   }
 }
 
-/* -----------------------------------------------------
-   九九表モーダル
------------------------------------------------------ */
-function openKukuModal() {
-  buildKukuGrid();
-  els.tableModal.classList.remove("hidden");
-}
-
-els.kukuFloatingBtn.onclick = openKukuModal;
-els.closeModal.onclick = () => els.tableModal.classList.add("hidden");
-
-const modalBackdrop = document.querySelector(
-  "#tableModal .modal-backdrop"
-);
-if (modalBackdrop) {
-  modalBackdrop.onclick = () => els.tableModal.classList.add("hidden");
-}
-
-/* 九九表（9×9 長押しでヒント） */
+// ------------------------------
+// 九九表
+// ------------------------------
 function buildKukuGrid() {
   let html =
     '<table class="kuku-table"><thead><tr><th class="hd">×</th>';
@@ -1043,54 +1202,47 @@ function buildKukuGrid() {
   }
   html += "</tbody></table>";
   els.kukuGrid.innerHTML = html;
-
-  if (!kukuHintShown) {
-    const cell = els.kukuGrid.querySelector(
-      'td.expr[data-i="9"][data-j="9"]'
-    );
-    if (cell) {
-      let timer = null;
-      const start = () => {
-        if (timer) clearTimeout(timer);
-        timer = setTimeout(() => {
-          if (!kukuHintShown) {
-            kukuHintShown = true;
-            els.kukuHint.textContent =
-              "ひみつヒント：9のだんは、指を10本たてて「おった指の前が十のくらい・うしろが一のくらい」で計算できるよ！";
-            els.kukuHint.style.display = "block";
-          }
-        }, 800);
-      };
-      const cancel = () => {
-        if (timer) {
-          clearTimeout(timer);
-          timer = null;
-        }
-      };
-      cell.addEventListener("mousedown", start);
-      cell.addEventListener("touchstart", start);
-      ["mouseup", "mouseleave", "touchend", "touchcancel"].forEach(
-        (ev) => cell.addEventListener(ev, cancel)
-      );
-    }
-  }
 }
 
-/* -----------------------------------------------------
-   難易度切り替え（夜モード中は無効）
------------------------------------------------------ */
+function openKukuModal() {
+  buildKukuGrid();
+  const tip = KUKU_TIPS[Math.floor(Math.random() * KUKU_TIPS.length)];
+  els.kukuHint.textContent = "💡 " + tip;
+  els.kukuHint.style.display = "block";
+  els.tableModal.classList.remove("hidden");
+}
+
+els.kukuFloatingBtn.onclick = openKukuModal;
+els.closeModal.onclick = () => els.tableModal.classList.add("hidden");
+if (modalBackdrop) {
+  modalBackdrop.onclick = () => els.tableModal.classList.add("hidden");
+}
+
+// ------------------------------
+// 難易度切り替え
+// ------------------------------
+function enableModes() {
+  modeBtns.forEach((b) => b.classList.remove("disabled"));
+}
+
 modeBtns.forEach((btn) => {
   btn.onclick = () => {
     initAudio();
     if (btn.classList.contains("disabled")) return;
-    if (nightMode) return; // 夜モード中は変更不可
+    if (nightMode) {
+      // 夜モード中は難易度変更不可
+      return;
+    }
+
+    // どのタイミングでも既存タイマーはクリア
+    stopTimer();
+    cancelPreCountdown();
 
     modeBtns.forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
 
     const n = Number(btn.dataset.qcount);
     totalQuestions = n;
-
     challengeMode = (n === 30);
 
     document.body.classList.remove("bg-easy", "bg-normal", "bg-hard");
@@ -1106,32 +1258,38 @@ modeBtns.forEach((btn) => {
       document.body.classList.add("bg-hard");
     }
 
-    if (bgmOn) startBGM();
+    if (bgmState === "playing") startBGM();
     makeQuiz();
-    if (challengeMode) runChallengeCountdown();
+
+    if (challengeMode) {
+      runChallengeCountdown();
+    }
   };
 });
 
-/* -----------------------------------------------------
-   BGM ON/OFF トグル（resumeを確実に）
------------------------------------------------------ */
+// ------------------------------
+// BGM トグル
+// ------------------------------
 els.bgmToggle.onclick = () => {
   initAudio();
   if (!AC || !bgmGain) return;
 
-  if (!bgmOn) {
-    const doPlay = () => {
-      startBGM();
-      els.bgmToggle.textContent = "🔊";
-      els.bgmToggle.classList.add("bgm-on");
-      els.bgmToggle.classList.remove("bgm-off");
-    };
+  if (bgmState === "off") {
+    // ON にする
+    bgmState = "starting";
+    els.bgmToggle.textContent = "🔊";
+    els.bgmToggle.classList.add("bgm-on");
+    els.bgmToggle.classList.remove("bgm-off");
+
     if (AC.state === "suspended") {
-      AC.resume().then(doPlay);
+      AC.resume().then(() => {
+        startBGM();
+      });
     } else {
-      doPlay();
+      startBGM();
     }
   } else {
+    // OFF にする
     stopBGM();
     els.bgmToggle.textContent = "🔇";
     els.bgmToggle.classList.add("bgm-off");
@@ -1139,36 +1297,25 @@ els.bgmToggle.onclick = () => {
   }
 };
 
-/* -----------------------------------------------------
-   結果画面ボタン
------------------------------------------------------ */
-function enableModes() {
-  modeBtns.forEach((b) => b.classList.remove("disabled"));
-}
-
+// ------------------------------
+// 結果画面ボタン
+// ------------------------------
 els.againBtn.onclick = () => {
   initAudio();
-  if (!nightMode) enableModes(); // 夜モード中は難易度は無効のまま
+  if (!nightMode) enableModes();
   els.resultCard.classList.add("hidden");
   els.quizCard.classList.remove("hidden");
   makeQuiz();
-  if (challengeMode) {
+  if (challengeMode && !nightMode) {
     runChallengeCountdown();
   } else if (nightMode) {
-    runNightCountdown(); // 夜モードもカウントダウン→90秒
+    runNightCountdown();
   }
 };
 
-els.restartBtn.onclick = () => {
-  initAudio();
-  fullResetToEasy();
-};
-
-/* -----------------------------------------------------
-   完全リセット（やさしい＋通常モードに戻す）
------------------------------------------------------ */
 function fullResetToEasy() {
   stopTimer();
+  cancelPreCountdown();
   els.timeDisplay.classList.add("hidden");
   els.timeDisplay.textContent = "";
 
@@ -1191,56 +1338,49 @@ function fullResetToEasy() {
   document.body.classList.remove("bg-easy", "bg-normal", "bg-hard");
   document.body.classList.add("bg-easy");
 
-  if (bgmOn) startBGM();
+  if (bgmState === "playing") startBGM();
   els.resultCard.classList.add("hidden");
   els.quizCard.classList.remove("hidden");
   makeQuiz();
 }
 
-/* -----------------------------------------------------
-   夜モード切り替え（タイトル長押し）
-   - ON時：問題数は常に30問固定
-   - ON時：難易度ボタン無効化＋カウントダウン→90秒タイマー
-   - OFF時：やさしいモード（10問＋やさしいBGM）に戻る
------------------------------------------------------ */
+els.restartBtn.onclick = () => {
+  initAudio();
+  fullResetToEasy();
+};
+
+// ------------------------------
+// 夜モード ON/OFF（タイトル長押し）
+// ------------------------------
 function toggleNightMode() {
   nightMode = !nightMode;
   legendaryFlag = false;
+
+  stopTimer();
+  cancelPreCountdown();
+  els.timeDisplay.classList.add("hidden");
+  els.timeDisplay.textContent = "";
 
   if (nightMode) {
     document.body.classList.add("night-mode");
     currentBgm = "night";
 
-    // 夜モードはいつでも30問固定
-    totalQuestions = 30;
+    totalQuestions = 30; // 夜モードは常に30問
     challengeMode = false;
 
-    stopTimer();
-    els.timeDisplay.classList.add("hidden");
-    els.timeDisplay.textContent = "";
-
-    // 難易度ボタン無効化
     modeBtns.forEach((b) => b.classList.add("disabled"));
 
-    if (bgmOn) startBGM();
+    if (bgmState === "playing") startBGM();
     makeQuiz();
     updateBuddy();
-
-    // 夜モードはカウントダウン→90秒
     runNightCountdown();
   } else {
     document.body.classList.remove("night-mode");
 
-    stopTimer();
-    els.timeDisplay.classList.add("hidden");
-    els.timeDisplay.textContent = "";
-
-    // やさしいモードに固定して戻す
     totalQuestions = 10;
     challengeMode = false;
     currentBgm = "easy";
 
-    // 難易度ボタン再有効化＆やさしいをアクティブに
     enableModes();
     modeBtns.forEach((b) => b.classList.remove("active"));
     const easyBtn = [...modeBtns].find(
@@ -1251,13 +1391,13 @@ function toggleNightMode() {
     document.body.classList.remove("bg-easy", "bg-normal", "bg-hard");
     document.body.classList.add("bg-easy");
 
-    if (bgmOn) startBGM();
+    if (bgmState === "playing") startBGM();
     makeQuiz();
     updateBuddy();
   }
 }
 
-/* タイトルの短押し / 長押し */
+// タイトル短押し / 長押し
 (() => {
   let pressTimer = null;
   let longPressed = false;
@@ -1268,8 +1408,8 @@ function toggleNightMode() {
     if (pressTimer) clearTimeout(pressTimer);
     pressTimer = setTimeout(() => {
       longPressed = true;
-      toggleNightMode(); // 夜モードON/OFF
-    }, 900); // 0.9秒以上で長押し
+      toggleNightMode();
+    }, 900);
   };
 
   const end = () => {
@@ -1278,7 +1418,6 @@ function toggleNightMode() {
       pressTimer = null;
     }
     if (!longPressed) {
-      // 通常タップ → 完全リセット
       fullResetToEasy();
     }
   };
@@ -1290,9 +1429,9 @@ function toggleNightMode() {
   );
 })();
 
-/* -----------------------------------------------------
-   初期化
------------------------------------------------------ */
+// ------------------------------
+// 初期化
+// ------------------------------
 els.bgmToggle.textContent = "🔇";
 els.bgmToggle.classList.add("bgm-off");
 document.body.classList.add("bg-easy");
