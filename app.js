@@ -13,7 +13,7 @@ let bgmSpeedFactor = 1.0;
 let bgmSectionIndex = 0;
 
 let nightMode = false;      // タイトル長押しでON（ちょうむず）
-let legendaryFlag = false;  // 伝説ドラゴン登場フラグ
+let legendaryFlag = false;  // でんせつのドラゴン登場フラグ
 
 /* -----------------------------------------------------
    Audio 初期化
@@ -104,7 +104,7 @@ function playSE(type) {
       end(0.20);
       return;
 
-    case "ROAR": { // 伝説のドラゴン咆哮（BGMを一瞬だけ小さくして目立たせる）
+    case "ROAR": { // でんせつのドラゴン咆哮（BGMを一瞬だけ小さくして目立たせる）
       if (bgmGain && AC) {
         const base =
           currentBgm === "night"
@@ -597,7 +597,7 @@ function runNightCountdown() {
 /* -----------------------------------------------------
    問題生成
    通常：1〜9×1〜9
-   夜モード：10〜19×1〜9（ただし問題数は常に30問）
+   夜モード：10〜19×1〜9（問題数は常に30問）
 ----------------------------------------------------- */
 function makeQuiz() {
   const all = [];
@@ -729,7 +729,7 @@ els.submitBtn.onclick = () => {
   } else {
     combo = 0;
     wrongCount++;
-    legendaryFlag = false; // ドラゴン解除
+    // legendaryFlag は correctCount によって決まるのでここでは触らない
     playSE("NG");
   }
 
@@ -772,26 +772,14 @@ function updateComboUI() {
     void badge.offsetWidth;
 
     badge.textContent = `${combo}コンボ！🔥`;
-
-    // 伝説ドラゴン条件：出題数の9割を連続正解
-    const threshold = Math.floor(totalQuestions * 0.9); // 10→9, 20→18, 30→27
-    if (combo >= threshold) {
+    if (combo >= 8) {
       badge.classList.add("combo-hot");
-      if (!legendaryFlag) {
-        legendaryFlag = true;
-        playSE("ROAR");
-        updateBuddy(); // ドラゴン登場
-      }
     }
 
     badge.classList.add("combo-show");
   } else {
     badge.classList.remove("combo-show", "combo-hot");
     badge.textContent = "";
-    if (legendaryFlag) {
-      legendaryFlag = false;
-      updateBuddy(); // 通常きょうりゅうに戻す
-    }
   }
 }
 
@@ -821,16 +809,28 @@ function feedback(msg, ok) {
 }
 
 /* -----------------------------------------------------
-   きょうりゅうエリア（伝説ドラゴン対応）
+   きょうりゅうエリア
+   レベルアップ条件：
+     レベル2（🐊）         → 5問正解
+     レベル3（🦖）        → 10問正解
+     レベル4（🌋🦖🦕🌋） → 15問正解
+     でんせつのドラゴン   → 20問正解
 ----------------------------------------------------- */
 function updateBuddy() {
+  const prevLegend = legendaryFlag;
+
+  // レベル段階は「正解数」で決める
+  let stage = 1;
+  if (correctCount >= 15) stage = 4;
+  else if (correctCount >= 10) stage = 3;
+  else if (correctCount >= 5) stage = 2;
+
+  // 伝説のドラゴン条件：20問正解
+  const newLegend = correctCount >= 20;
+  legendaryFlag = newLegend;
+
   const ratio = totalQuestions ? correctCount / totalQuestions : 0;
   els.starFill.style.width = ratio * 100 + "%";
-
-  let stage = 1;
-  if (ratio >= 0.75) stage = 4;
-  else if (ratio >= 0.5) stage = 3;
-  else if (ratio >= 0.25) stage = 2;
 
   if (stage > lastStage && !legendaryFlag) {
     els.dinoEmoji.classList.add("dino-bounce");
@@ -840,6 +840,12 @@ function updateBuddy() {
       600
     );
   }
+
+  // 伝説ドラゴンになった瞬間に咆哮
+  if (legendaryFlag && !prevLegend) {
+    playSE("ROAR");
+  }
+
   lastStage = stage;
 
   // 背景スキン
@@ -1195,6 +1201,7 @@ function fullResetToEasy() {
    夜モード切り替え（タイトル長押し）
    - ON時：問題数は常に30問固定
    - ON時：難易度ボタン無効化＋カウントダウン→90秒タイマー
+   - OFF時：やさしいモード（10問＋やさしいBGM）に戻る
 ----------------------------------------------------- */
 function toggleNightMode() {
   nightMode = !nightMode;
@@ -1228,13 +1235,21 @@ function toggleNightMode() {
     els.timeDisplay.classList.add("hidden");
     els.timeDisplay.textContent = "";
 
-    // 難易度ボタン再有効化
-    enableModes();
+    // やさしいモードに固定して戻す
+    totalQuestions = 10;
+    challengeMode = false;
+    currentBgm = "easy";
 
-    // 現在の問題数に応じて通常BGMへ
-    if (totalQuestions === 10) currentBgm = "easy";
-    else if (totalQuestions === 20) currentBgm = "normal";
-    else currentBgm = "hard";
+    // 難易度ボタン再有効化＆やさしいをアクティブに
+    enableModes();
+    modeBtns.forEach((b) => b.classList.remove("active"));
+    const easyBtn = [...modeBtns].find(
+      (b) => b.dataset.qcount === "10"
+    );
+    if (easyBtn) easyBtn.classList.add("active");
+
+    document.body.classList.remove("bg-easy", "bg-normal", "bg-hard");
+    document.body.classList.add("bg-easy");
 
     if (bgmOn) startBGM();
     makeQuiz();
